@@ -12,6 +12,10 @@ from simulation.traci_wrapper import SumoNotFoundError, find_sumo_binary
 
 NET_DIR = Path(__file__).parent.parent / "simulation" / "net"
 SUMOCFG = NET_DIR / "intersection.sumocfg"
+# Routes-only config (no background <flow> demand) - for deterministic tests
+# that inject their own vehicles and would otherwise be contaminated by
+# randomly-generated traffic from the main intersection.rou.xml.
+TEST_SUMOCFG = NET_DIR / "intersection_test.sumocfg"
 
 
 def sumo_available() -> bool:

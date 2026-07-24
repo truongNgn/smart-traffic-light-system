@@ -18,13 +18,7 @@ from common.constants import CELL_LENGTH_M, GRID_CELLS_PER_APPROACH, GRID_CELLS_
 from simulation.state import APPROACH_EDGE_BY_DIRECTION, GridEncoder, total_waiting_time
 from simulation.state.grid_encoder import _cell_index_for_position
 from simulation.traci_wrapper import TraciSession
-from tests.conftest import NET_DIR, requires_network, requires_sumo
-
-# Routes-only config (no background <flow> demand) so these deterministic
-# tests aren't contaminated by randomly-generated traffic from the main
-# intersection.rou.xml. Regenerate with the --routes-only flag documented in
-# simulation/net/generate_routes.py.
-TEST_SUMOCFG = NET_DIR / "intersection_test.sumocfg"
+from tests.conftest import TEST_SUMOCFG, requires_network, requires_sumo
 
 
 class TestCellIndexForPositionUnit:

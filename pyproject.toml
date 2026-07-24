@@ -9,6 +9,9 @@ dependencies = [
     "structlog>=24.1",
     "traci>=1.19.0",
     "sumolib>=1.19.0",
+    "gymnasium>=0.29",
+    "numpy>=1.26",
+    "torch>=2.2",
 ]
 
 [project.optional-dependencies]
