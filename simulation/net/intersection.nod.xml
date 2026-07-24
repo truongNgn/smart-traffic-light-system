@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  4-way intersection node layout. C is the controlled junction; N/S/E/W are
+  the outer boundary nodes, each APPROACH_LENGTH_M (100m, see
+  common/constants.py) away from C. netconvert compiles this + the .edg.xml
+  into intersection.net.xml and auto-derives connections + a traffic-light
+  program (overridden at runtime via TraCI, see traci_wrapper/).
+-->
+<nodes>
+    <node id="C" x="0" y="0" type="traffic_light" tlType="static"/>
+    <node id="N" x="0" y="100" type="priority"/>
+    <node id="S" x="0" y="-100" type="priority"/>
+    <node id="E" x="100" y="0" type="priority"/>
+    <node id="W" x="-100" y="0" type="priority"/>
+</nodes>

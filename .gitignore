@@ -1,0 +1,31 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+
+# Env / secrets
+.env
+.env.*
+
+# SUMO generated / large artifacts
+simulation/net/intersection.net.xml
+simulation/net/intersection.rou.xml
+*.sumocfg.bak
+
+# ML artifacts
+*.pt
+*.pth
+*.ckpt
+mlruns/
+wandb/
+checkpoints/
+
+# OS / editors
+.DS_Store
+.vscode/
+.idea/

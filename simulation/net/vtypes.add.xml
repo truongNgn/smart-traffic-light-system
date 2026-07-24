@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  The 4 vehicle classes from the paper. Must stay in sync with
+  common.constants.VehicleClass — the id here is what
+  common.constants.VEHICLE_CLASS_TO_SUMO_VCLASS maps onto.
+-->
+<additional>
+    <vType id="car" vClass="passenger" length="4.5" maxSpeed="16.7" accel="2.6" decel="4.5"/>
+    <vType id="motorcycle" vClass="motorcycle" length="2.0" maxSpeed="16.7" accel="3.5" decel="5.0"/>
+    <vType id="bus" vClass="bus" length="10.0" maxSpeed="13.9" accel="1.2" decel="3.5"/>
+    <vType id="truck" vClass="truck" length="8.0" maxSpeed="13.9" accel="1.0" decel="3.5"/>
+</additional>
