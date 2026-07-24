@@ -65,7 +65,7 @@ def turn_kind(origin: str, dest: str) -> str:
     return "left"
 
 
-def build_rou_xml(duration_s: int, seed: int) -> Element:
+def build_rou_xml(duration_s: int, seed: int, routes_only: bool = False) -> Element:
     root = Element("routes")
     root.set(
         "xmlns:xsi", "http://www.w3.org/2001/XMLSchema-instance"
@@ -74,6 +74,9 @@ def build_rou_xml(duration_s: int, seed: int) -> Element:
     routes = build_routes()
     for route in routes:
         SubElement(root, "route", id=route.id, edges=route.edges)
+
+    if routes_only:
+        return root
 
     flow_index = 0
     for entrance_edge, origin in ENTRANCES.items():
@@ -110,9 +113,15 @@ def main() -> None:
     parser.add_argument(
         "--out", type=Path, default=NET_DIR / "intersection.rou.xml", help="Output .rou.xml path."
     )
+    parser.add_argument(
+        "--routes-only",
+        action="store_true",
+        help="Emit <route> definitions only, no <flow> demand - used for deterministic tests "
+        "that inject their own vehicles via traci.vehicle.add/moveTo.",
+    )
     args = parser.parse_args()
 
-    root = build_rou_xml(duration_s=args.duration, seed=args.seed)
+    root = build_rou_xml(duration_s=args.duration, seed=args.seed, routes_only=args.routes_only)
     tree = ElementTree(root)
     indent(tree, space="    ")
     tree.write(args.out, encoding="UTF-8", xml_declaration=True)

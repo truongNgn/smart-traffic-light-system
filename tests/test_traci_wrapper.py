@@ -14,29 +14,7 @@ from pathlib import Path
 import pytest
 
 from simulation.traci_wrapper import SumoNotFoundError, TraciSession, find_sumo_binary
-
-NET_DIR = Path(__file__).parent.parent / "simulation" / "net"
-SUMOCFG = NET_DIR / "intersection.sumocfg"
-
-
-def _sumo_available() -> bool:
-    try:
-        find_sumo_binary(use_gui=False)
-        return True
-    except SumoNotFoundError:
-        return False
-
-
-def _network_built() -> bool:
-    return (NET_DIR / "intersection.net.xml").exists() and (NET_DIR / "intersection.rou.xml").exists()
-
-
-requires_sumo = pytest.mark.skipif(not _sumo_available(), reason="SUMO not installed / not on PATH")
-requires_network = pytest.mark.skipif(
-    not _network_built(),
-    reason="Network not built - run `python -m simulation.net.build_net` and "
-    "`python -m simulation.net.generate_routes` first",
-)
+from tests.conftest import SUMOCFG, requires_network, requires_sumo
 
 
 class TestTraciSessionUnit:

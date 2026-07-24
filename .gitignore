@@ -15,6 +15,7 @@ venv/
 # SUMO generated / large artifacts
 simulation/net/intersection.net.xml
 simulation/net/intersection.rou.xml
+simulation/net/intersection_test.rou.xml
 *.sumocfg.bak
 
 # ML artifacts

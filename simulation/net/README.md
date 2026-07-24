@@ -11,12 +11,14 @@ Source-of-truth files (checked into git):
 | `build_net.py` | Runs `netconvert` to compile the `.net.xml` |
 | `intersection.sumocfg` | Ties it all together for `sumo`/`sumo-gui` |
 
-`intersection.net.xml` and `intersection.rou.xml` are **generated, not committed** (see `.gitignore`) — regenerate them locally:
+`intersection.net.xml`, `intersection.rou.xml` and `intersection_test.rou.xml` are **generated, not committed** (see `.gitignore`) — regenerate them locally:
 
 ```bash
 python -m simulation.net.build_net
 python -m simulation.net.generate_routes --duration 3600 --seed 42
 ```
+
+`intersection_test.rou.xml` (routes only, no background demand - used by `tests/test_grid_encoder.py`'s golden tests) is regenerated automatically by `tests/conftest.py` the first time you run `pytest`, as long as `intersection.net.xml` already exists; you don't need to generate it by hand.
 
 Requires [SUMO](https://sumo.dlr.de/docs/Downloads.php) installed with `SUMO_HOME` set (or `sumo`/`netconvert`/`sumo-gui` on `PATH`).
 

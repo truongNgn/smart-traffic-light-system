@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Deterministic-test variant: same network as intersection.sumocfg, but
+  routes-only demand (no flow background traffic) so tests that inject
+  exact vehicles via traci.vehicle.add/moveTo aren't contaminated by random
+  flow-generated vehicles. Regenerate intersection_test.rou.xml with the
+  routes only flag documented in simulation/net/generate_routes.py.
+-->
+<configuration>
+    <input>
+        <net-file value="intersection.net.xml"/>
+        <route-files value="intersection_test.rou.xml"/>
+        <additional-files value="vtypes.add.xml"/>
+    </input>
+    <time>
+        <begin value="0"/>
+        <step-length value="1"/>
+    </time>
+    <processing>
+        <time-to-teleport value="-1"/>
+    </processing>
+    <report>
+        <no-step-log value="true"/>
+        <duration-log.disable value="true"/>
+    </report>
+</configuration>
