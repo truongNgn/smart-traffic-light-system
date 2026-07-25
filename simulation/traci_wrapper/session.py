@@ -1,12 +1,23 @@
-"""Connection lifecycle around TraCI: find the SUMO binary, start it as a
-subprocess, step it, and guarantee teardown even on exceptions.
+"""Connection lifecycle around SUMO: find the binary (traci backend) or the
+in-process library (libsumo backend), start it, step it, and guarantee
+teardown even on exceptions.
 
-TraCI itself is a client-server protocol - SUMO runs as the server, this
-process is the client - so "wrapping TraCI" mostly means: locating the right
-binary, building the command line correctly, and never leaking a live SUMO
-process when something goes wrong. Downstream code (rl/env/, simulation/state/)
-should depend on TraciSession, not call `traci.*` directly, so the connection
-details stay in one place.
+Two backends, same interface:
+
+- **traci** (default): SUMO runs as a subprocess, this process talks to it
+  over a TCP socket. Supports sumo-gui and multiple concurrent labeled
+  connections. The socket round-trip is pure overhead per call though -
+  benchmarked at ~8x slower than libsumo for step-heavy workloads (see
+  docs/training_on_kaggle.md), which matters a lot over an RL training run.
+- **libsumo**: the SUMO engine linked directly into the Python process, no
+  socket, no subprocess. Much faster, but headless only (no sumo-gui) and
+  only one simulation can be active per process at a time (no `label`
+  multiplexing) - use it for training, use `traci` when you want to *watch*
+  the simulation (smoke_test.py --gui) or need concurrent sessions.
+
+Downstream code (rl/env/, simulation/state/) should depend on TraciSession
+and its `.traci` property, never call `traci.*`/`libsumo.*` directly, so
+this stays the only place that knows which backend is active.
 """
 
 from __future__ import annotations
@@ -16,6 +27,7 @@ import shutil
 import sys
 from pathlib import Path
 from types import TracebackType
+from typing import Literal
 
 from common.config import SimulationSettings
 from common.constants import DEFAULT_SEED, DEFAULT_STEP_LENGTH_S
@@ -23,9 +35,11 @@ from common.logging import get_logger
 
 logger = get_logger(component="traci_wrapper")
 
+Backend = Literal["traci", "libsumo"]
+
 
 class SumoNotFoundError(RuntimeError):
-    """Raised when neither `sumo`/`sumo-gui` nor SUMO_HOME can locate a binary."""
+    """Raised when neither `sumo`/`sumo-gui`/`libsumo` nor SUMO_HOME can be found."""
 
 
 def _ensure_traci_importable(sumo_home: str | None) -> None:
@@ -48,6 +62,17 @@ def _ensure_traci_importable(sumo_home: str | None) -> None:
     if not tools_dir.exists():
         raise SumoNotFoundError(f"SUMO_HOME is set to {home!r} but {tools_dir} does not exist.")
     sys.path.insert(0, str(tools_dir))
+
+
+def _import_libsumo():  # noqa: ANN201 - returns the libsumo module
+    try:
+        import libsumo
+
+        return libsumo
+    except ImportError as exc:
+        raise SumoNotFoundError(
+            "backend='libsumo' requires the `libsumo` package: `pip install libsumo`."
+        ) from exc
 
 
 def find_sumo_binary(use_gui: bool, sumo_home: str | None = None) -> str:
@@ -80,7 +105,9 @@ class TraciSession:
                 vehicle_ids = sim.traci.vehicle.getIDList()
 
     Multiple concurrent sessions (e.g. parallel RL rollout workers) must pass
-    distinct `label` values - TraCI multiplexes connections by label.
+    distinct `label` values when backend="traci" - TraCI multiplexes
+    connections by label. backend="libsumo" has no such concept - only one
+    session may be active per process at a time.
     """
 
     def __init__(
@@ -94,7 +121,11 @@ class TraciSession:
         port: int | None = None,
         label: str = "default",
         extra_args: list[str] | None = None,
+        backend: Backend = "traci",
     ) -> None:
+        if backend == "libsumo" and use_gui:
+            raise ValueError("backend='libsumo' does not support use_gui=True; use backend='traci'.")
+
         self.sumocfg_path = Path(sumocfg_path)
         self.use_gui = use_gui
         self.seed = seed
@@ -103,6 +134,7 @@ class TraciSession:
         self.port = port
         self.label = label
         self.extra_args = extra_args or []
+        self.backend: Backend = backend
 
         self._traci_module = None
         self._connected = False
@@ -117,35 +149,51 @@ class TraciSession:
             step_length_s=settings.step_length_s,
             sumo_home=settings.sumo_home,
             port=settings.traci_port,
+            backend=settings.backend,
         )
         kwargs.update(overrides)
         return cls(**kwargs)  # type: ignore[arg-type]
 
-    def _build_command(self) -> list[str]:
+    def _build_args(self) -> list[str]:
+        """The command-line args after the binary itself - shared by both
+        backends (libsumo ignores the binary path element entirely, so it
+        gets a placeholder instead of a real resolved executable)."""
         if not self.sumocfg_path.exists():
             raise FileNotFoundError(f"sumocfg not found: {self.sumocfg_path}")
-        binary = find_sumo_binary(self.use_gui, self.sumo_home)
-        cmd = [
-            binary,
+        args = [
             "-c", str(self.sumocfg_path),
             "--seed", str(self.seed),
             "--step-length", str(self.step_length_s),
             "--start" if self.use_gui else "--no-step-log",
             "true",
         ]
-        cmd.extend(self.extra_args)
-        return cmd
+        args.extend(self.extra_args)
+        return args
+
+    def _build_command(self) -> list[str]:
+        binary = find_sumo_binary(self.use_gui, self.sumo_home)
+        return [binary] + self._build_args()
 
     def start(self) -> "TraciSession":
         if self._connected:
             raise RuntimeError("TraciSession is already connected.")
-        _ensure_traci_importable(self.sumo_home)
-        import traci
 
-        cmd = self._build_command()
-        logger.info("sumo.start", cmd=cmd, label=self.label, seed=self.seed)
-        traci.start(cmd, port=self.port, label=self.label)
-        self._traci_module = traci.getConnection(self.label)
+        if self.backend == "libsumo":
+            libsumo = _import_libsumo()
+            args = self._build_args()
+            cmd = ["sumo"] + args  # placeholder binary path - libsumo ignores it
+            logger.info("sumo.start", cmd=cmd, label=self.label, seed=self.seed, backend="libsumo")
+            libsumo.start(cmd, label=self.label)
+            self._traci_module = libsumo
+        else:
+            _ensure_traci_importable(self.sumo_home)
+            import traci
+
+            cmd = self._build_command()
+            logger.info("sumo.start", cmd=cmd, label=self.label, seed=self.seed, backend="traci")
+            traci.start(cmd, port=self.port, label=self.label)
+            self._traci_module = traci.getConnection(self.label)
+
         self._connected = True
         return self
 
@@ -169,7 +217,7 @@ class TraciSession:
                 logger.info("sumo.closed", label=self.label, steps=self._step_count)
 
     @property
-    def traci(self):  # noqa: ANN201 - returns the live traci connection module
+    def traci(self):  # noqa: ANN201 - returns the live traci connection or libsumo module
         if not self._connected:
             raise RuntimeError("Session not started.")
         return self._traci_module

@@ -21,6 +21,12 @@ dev = [
     "ruff>=0.5",
     "mypy>=1.10",
 ]
+# ~8x faster than traci for step-heavy workloads (in-process, no socket) -
+# training uses it by default (rl/train/config.py), falling back to traci
+# if unavailable. Separate extra since it's headless-only.
+fast-sim = [
+    "libsumo>=1.19.0",
+]
 
 [tool.ruff]
 line-length = 100

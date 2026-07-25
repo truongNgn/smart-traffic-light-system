@@ -20,7 +20,7 @@ though the SUMO config itself is fine. `eclipse-sumo` ships self-contained
 binaries that don't touch system libraries.
 
 ```bash
-!pip install -q eclipse-sumo traci sumolib
+!pip install -q eclipse-sumo traci sumolib libsumo
 !git clone https://github.com/truongNgn/smart-traffic-light-system.git
 %cd smart-traffic-light-system
 !pip install -q pydantic pydantic-settings structlog gymnasium numpy
@@ -80,7 +80,31 @@ agent = train(cfg)
 Progress is logged as structured JSON (one line per episode: reward,
 epsilon, avg_loss, final_waiting_time_s) - watch it in the cell output to
 confirm the reward trend is moving in the right direction before committing
-to a long run.
+to a long run. A final `train.complete` line is logged once `num_episodes`
+is reached.
+
+### Why the GPU looks idle during training
+
+`nvidia-smi` will show near-0% GPU utilization for most of a training run,
+and that's expected, not a bug: the DQN itself is tiny (80 -> 5x400 -> 4),
+a forward/backward pass takes microseconds even on CPU. The actual
+bottleneck is stepping SUMO - `env.step()` calls into the simulator once
+per control step (and `yellow_steps + all_red_steps + 1` times on every
+direction change), which historically went through TraCI's socket protocol
+and dominated wall-clock time.
+
+`rl/train/config.py`'s `TrainingConfig.backend` defaults to `"libsumo"` -
+the SUMO engine linked directly into the Python process instead of talking
+to a subprocess over a socket. Benchmarked locally at **~8x faster**
+stepping than `traci` for the same workload. It's headless-only (no
+`sumo-gui`) and only one simulation can be active per process at a time (no
+`label`-based concurrency like `traci` has), which is exactly what a single
+sequential training loop needs. `train.py` falls back to `traci` with a
+`train.libsumo_not_installed_falling_back_to_traci` warning if the
+`libsumo` package isn't installed - the setup cell above installs it, so
+this shouldn't trigger on Kaggle. Even with libsumo, the GPU will still sit
+mostly idle - that's just this workload's shape (simulation-bound, not
+compute-bound), not a setup problem.
 
 ## 5. Resuming across Kaggle's session time limit
 

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Literal
+
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -26,6 +28,12 @@ class SimulationSettings(BaseSettings):
     step_length_s: float = Field(default=DEFAULT_STEP_LENGTH_S)
     traci_port: int | None = Field(
         default=None, description="Fixed TraCI port; None lets traci pick a free one."
+    )
+    backend: Literal["traci", "libsumo"] = Field(
+        default="traci",
+        description="'traci' (subprocess+socket, supports GUI) or 'libsumo' "
+        "(in-process, ~8x faster stepping, headless only - see "
+        "simulation/traci_wrapper/session.py).",
     )
 
 

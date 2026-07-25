@@ -10,7 +10,7 @@ import numpy as np
 
 from common.constants import GRID_CELLS_TOTAL, NUM_ACTIONS
 from rl.env.traffic_env import SumoTrafficEnv
-from tests.conftest import TEST_SUMOCFG, requires_network, requires_sumo
+from tests.conftest import TEST_SUMOCFG, requires_libsumo, requires_network, requires_sumo
 
 
 @requires_sumo
@@ -86,5 +86,41 @@ class TestSumoTrafficEnv:
 
             env.reset()
             assert env._sim.traci.simulation.getTime() < step_before_second_reset
+        finally:
+            env.close()
+
+
+@requires_sumo
+@requires_network
+@requires_libsumo
+class TestSumoTrafficEnvLibsumoBackend:
+    """rl/train/train.py defaults to backend='libsumo' for speed - proves
+    the env produces the same shape of observation and honors the same
+    safety buffer under that backend, not just the default 'traci' one."""
+
+    def test_reset_and_step_produce_valid_observations(self) -> None:
+        env = SumoTrafficEnv(sumocfg_path=TEST_SUMOCFG, seed=1, backend="libsumo")
+        try:
+            obs, _ = env.reset()
+            assert obs.shape == (GRID_CELLS_TOTAL,)
+            other_action = (int(env._current_direction.value) + 1) % NUM_ACTIONS
+            obs, reward, terminated, truncated, info = env.step(other_action)
+            assert obs.shape == (GRID_CELLS_TOTAL,)
+        finally:
+            env.close()
+
+    def test_switching_direction_still_honors_safety_buffer(self) -> None:
+        env = SumoTrafficEnv(sumocfg_path=TEST_SUMOCFG, seed=1, backend="libsumo")
+        try:
+            env.reset()
+            current_action = int(env._current_direction.value)
+            other_action = (current_action + 1) % NUM_ACTIONS
+
+            step_before = env._sim.traci.simulation.getTime()
+            env.step(other_action)
+            step_after = env._sim.traci.simulation.getTime()
+
+            expected_steps = (env._yellow_steps + env._all_red_steps + 1) * env.step_length_s
+            assert step_after - step_before == expected_steps
         finally:
             env.close()

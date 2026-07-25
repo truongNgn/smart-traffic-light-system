@@ -36,14 +36,33 @@ def epsilon_for_episode(episode_index: int, cfg: TrainingConfig) -> float:
     return cfg.epsilon_start + fraction * (cfg.epsilon_end - cfg.epsilon_start)
 
 
+def _resolve_backend(cfg: TrainingConfig) -> str:
+    """libsumo is ~8x faster than traci for step-heavy workloads like
+    training (no subprocess/socket round-trip per TraCI call - see
+    simulation/traci_wrapper/session.py), so it's the default here. Fall
+    back to traci with a warning rather than a hard failure if it isn't
+    installed, so training still runs on a fresh checkout."""
+    if cfg.backend != "libsumo":
+        return cfg.backend
+    try:
+        import libsumo  # noqa: F401
+
+        return "libsumo"
+    except ImportError:
+        logger.warning("train.libsumo_not_installed_falling_back_to_traci")
+        return "traci"
+
+
 def train(cfg: TrainingConfig) -> DQNAgent:
     configure_logging()
 
+    backend = _resolve_backend(cfg)
     env = SumoTrafficEnv(
         sumocfg_path=cfg.sumocfg_path,
         use_gui=cfg.use_gui,
         seed=cfg.seed,
         episode_duration_s=cfg.episode_duration_s,
+        backend=backend,
     )
     agent = DQNAgent(learning_rate=cfg.learning_rate, gamma=cfg.gamma, seed=cfg.seed)
     buffer = ReplayBuffer(capacity=cfg.replay_capacity, seed=cfg.seed)
@@ -120,6 +139,12 @@ def train(cfg: TrainingConfig) -> DQNAgent:
                 save_checkpoint(checkpoint_dir / "dqn_best.pt", agent, episode)
 
         save_checkpoint(checkpoint_dir / "dqn_final.pt", agent, cfg.num_episodes)
+        logger.info(
+            "train.complete",
+            num_episodes=cfg.num_episodes,
+            best_episode_reward=best_episode_reward,
+            checkpoint_dir=str(checkpoint_dir),
+        )
     finally:
         env.close()
         if use_mlflow:
@@ -138,6 +163,9 @@ def main() -> None:
     parser.add_argument("--resume", dest="resume_from", default=None)
     parser.add_argument("--seed", dest="seed", type=int, default=None)
     parser.add_argument("--mlflow", dest="use_mlflow", action="store_true", default=None)
+    parser.add_argument(
+        "--backend", dest="backend", choices=["libsumo", "traci"], default=None
+    )
     args = {k: v for k, v in vars(parser.parse_args()).items() if v is not None}
 
     cfg = TrainingConfig(**args)

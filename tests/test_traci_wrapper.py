@@ -14,7 +14,7 @@ from pathlib import Path
 import pytest
 
 from simulation.traci_wrapper import SumoNotFoundError, TraciSession, find_sumo_binary
-from tests.conftest import SUMOCFG, requires_network, requires_sumo
+from tests.conftest import SUMOCFG, requires_libsumo, requires_network, requires_sumo
 
 
 class TestTraciSessionUnit:
@@ -48,6 +48,10 @@ class TestTraciSessionUnit:
         monkeypatch.delenv("SUMO_HOME", raising=False)
         with pytest.raises(SumoNotFoundError):
             find_sumo_binary(use_gui=False)
+
+    def test_libsumo_backend_rejects_gui(self) -> None:
+        with pytest.raises(ValueError):
+            TraciSession(sumocfg_path=SUMOCFG, backend="libsumo", use_gui=True)
 
 
 @requires_sumo
@@ -86,3 +90,46 @@ class TestTraciSessionIntegration:
                 session.step()
                 raise ValueError("boom")
         assert not session.is_connected
+
+
+@requires_sumo
+@requires_network
+@requires_libsumo
+class TestTraciSessionLibsumoBackend:
+    """Same contract as TestTraciSessionIntegration, proved against the
+    libsumo backend too - the two must stay interchangeable since
+    rl/train/train.py switches between them transparently."""
+
+    def test_context_manager_steps_and_closes_cleanly(self) -> None:
+        with TraciSession(sumocfg_path=SUMOCFG, seed=1, backend="libsumo") as sim:
+            assert sim.is_connected
+            new_count = sim.step(10)
+            assert new_count == 10
+        assert not sim.is_connected
+
+    def test_vehicles_spawn_from_configured_demand(self) -> None:
+        with TraciSession(sumocfg_path=SUMOCFG, seed=1, backend="libsumo") as sim:
+            seen_any_vehicle = False
+            for _ in range(300):
+                sim.step()
+                if sim.traci.vehicle.getIDList():
+                    seen_any_vehicle = True
+                    break
+            assert seen_any_vehicle, "No vehicles appeared in 300 steps - check demand config."
+
+    def test_traffic_light_program_is_queryable(self) -> None:
+        with TraciSession(sumocfg_path=SUMOCFG, seed=1, backend="libsumo") as sim:
+            state = sim.traci.trafficlight.getRedYellowGreenState("C")
+            assert isinstance(state, str)
+            assert len(state) > 0
+            assert set(state.upper()) <= set("RYG")
+
+    def test_two_sequential_sessions_in_same_process_both_work(self) -> None:
+        # libsumo only allows one *active* session per process at a time (no
+        # label-based multiplexing like traci) - this proves close() fully
+        # releases it so a second, separate session can start cleanly after.
+        with TraciSession(sumocfg_path=SUMOCFG, seed=1, backend="libsumo") as sim1:
+            sim1.step(5)
+        with TraciSession(sumocfg_path=SUMOCFG, seed=2, backend="libsumo") as sim2:
+            sim2.step(5)
+        assert not sim2.is_connected

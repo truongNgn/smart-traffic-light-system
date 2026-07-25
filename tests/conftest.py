@@ -30,11 +30,23 @@ def network_built() -> bool:
     return (NET_DIR / "intersection.net.xml").exists() and (NET_DIR / "intersection.rou.xml").exists()
 
 
+def libsumo_available() -> bool:
+    try:
+        import libsumo  # noqa: F401
+
+        return True
+    except ImportError:
+        return False
+
+
 requires_sumo = pytest.mark.skipif(not sumo_available(), reason="SUMO not installed / not on PATH")
 requires_network = pytest.mark.skipif(
     not network_built(),
     reason="Network not built - run `python -m simulation.net.build_net` and "
     "`python -m simulation.net.generate_routes` first",
+)
+requires_libsumo = pytest.mark.skipif(
+    not libsumo_available(), reason="libsumo not installed - `pip install libsumo`"
 )
 
 

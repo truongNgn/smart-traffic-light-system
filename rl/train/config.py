@@ -17,6 +17,12 @@ class TrainingConfig(BaseSettings):
     use_gui: bool = Field(default=False)
     seed: int = Field(default=DEFAULT_SEED)
     episode_duration_s: float = Field(default=3600.0)
+    backend: str = Field(
+        default="libsumo",
+        description="'libsumo' (default, ~8x faster - training never needs a GUI) or "
+        "'traci' (subprocess+socket). train.py falls back to 'traci' with a "
+        "warning if the libsumo package isn't installed.",
+    )
 
     # Training loop
     num_episodes: int = Field(default=500, ge=1)
