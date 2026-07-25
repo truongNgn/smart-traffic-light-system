@@ -58,6 +58,16 @@ class VisionSettings(BaseSettings):
         default=0.45,
         description="NMS IoU threshold for YOLO detection.",
     )
+    # A generic mapping of lane/ROI name to polygon points [(x,y), ...]
+    # For now, we will use hardcoded defaults that cover standard frames,
+    # or rely on speed calculation across the whole frame if ROIs aren't strictly defined.
+    rois: dict[str, list[tuple[int, int]]] = Field(
+        default={
+            "Lane-1": [(0, 300), (640, 300), (640, 480), (0, 480)],
+        },
+        description="Dictionary mapping lane ID to a list of (x,y) polygon points.",
+    )
+
 
 
 class RedisSettings(BaseSettings):
@@ -70,6 +80,17 @@ class RedisSettings(BaseSettings):
     stream_name: str = Field(default="vehicle_counts")
 
 
+class ApiSettings(BaseSettings):
+    """Settings for the FastAPI application (Engineer A)."""
+
+    model_config = SettingsConfigDict(env_prefix="API_", env_file=".env", extra="ignore")
+
+    host: str = Field(default="0.0.0.0")
+    port: int = Field(default=8000)
+    cors_origins: list[str] = Field(default=["*"])
+
+
 settings = SimulationSettings()
 vision_settings = VisionSettings()
 redis_settings = RedisSettings()
+api_settings = ApiSettings()

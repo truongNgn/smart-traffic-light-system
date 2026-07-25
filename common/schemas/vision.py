@@ -24,6 +24,14 @@ class VehicleCountEvent(BaseModel):
         default_factory=dict,
         description="Dictionary mapping vehicle class (e.g., 'car', 'bus') to count.",
     )
+    lane_counts: Dict[str, int] = Field(
+        default_factory=dict,
+        description="Dictionary mapping lane ID (e.g., 'E-Left', 'E-Straight') to current count.",
+    )
+    mean_speed_mps: float = Field(
+        default=0.0,
+        description="Estimated mean speed of all tracked vehicles in meters per second.",
+    )
     centroids: Dict[int, Tuple[float, float]] = Field(
         default_factory=dict,
         description="Dictionary mapping track ID to (x, y) centroid coordinates.",
