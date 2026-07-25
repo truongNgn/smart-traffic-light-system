@@ -25,6 +25,7 @@ simulation/net/intersection_test.rou.xml
 mlruns/
 wandb/
 checkpoints/
+benchmark/results/*.json
 
 # OS / editors
 .DS_Store

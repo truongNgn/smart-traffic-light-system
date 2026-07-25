@@ -10,7 +10,7 @@ import numpy as np
 
 from common.constants import GRID_CELLS_TOTAL, NUM_ACTIONS
 from rl.env.traffic_env import SumoTrafficEnv
-from tests.conftest import TEST_SUMOCFG, requires_libsumo, requires_network, requires_sumo
+from tests.conftest import SUMOCFG, TEST_SUMOCFG, requires_libsumo, requires_network, requires_sumo
 
 
 @requires_sumo
@@ -24,6 +24,33 @@ class TestSumoTrafficEnv:
             assert obs.dtype == np.float32
             assert set(np.unique(obs)).issubset({0.0, 1.0})
             assert "total_waiting_time_s" in info
+            assert "sim_time_s" in info
+            assert "arrived_vehicles" in info
+        finally:
+            env.close()
+
+    def test_arrived_vehicles_is_cumulative_and_counts_transitions(self) -> None:
+        # Uses the real (with-demand) sumocfg, not the routes-only test one,
+        # so vehicles actually complete routes and get counted as arrived.
+        env = SumoTrafficEnv(sumocfg_path=SUMOCFG, seed=1, episode_duration_s=300)
+        try:
+            obs, info = env.reset()
+            assert info["arrived_vehicles"] == 0
+
+            total_arrived = 0
+            terminated = truncated = False
+            steps = 0
+            while not (terminated or truncated) and steps < 60:
+                # Alternate actions every step to force a phase transition
+                # (yellow+all-red+green) on every single call - the scenario
+                # that would silently drop arrivals without _step_and_track.
+                action = steps % NUM_ACTIONS
+                obs, reward, terminated, truncated, info = env.step(action)
+                assert info["arrived_vehicles"] >= total_arrived
+                total_arrived = info["arrived_vehicles"]
+                steps += 1
+
+            assert total_arrived > 0, "No vehicles arrived - demand or routing may be broken."
         finally:
             env.close()
 

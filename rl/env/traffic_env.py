@@ -72,6 +72,7 @@ class SumoTrafficEnv(gym.Env):
         self._encoder = GridEncoder()
         self._reward_engine = WaitingTimeReward()
         self._current_direction: Direction | None = None
+        self._cumulative_arrived = 0
 
     def reset(self, *, seed: int | None = None, options: dict | None = None):  # noqa: ANN001
         super().reset(seed=seed)
@@ -87,6 +88,7 @@ class SumoTrafficEnv(gym.Env):
             backend=self.backend,
         ).start()
         self._tls = TlsController(self._sim.traci, self.tls_id)
+        self._cumulative_arrived = 0
 
         # First green is granted directly - there's no prior direction to
         # transition away from, so no yellow/all-red buffer applies yet.
@@ -94,12 +96,16 @@ class SumoTrafficEnv(gym.Env):
             self.tls_id, self._tls.green_state(self.initial_direction)
         )
         self._current_direction = self.initial_direction
-        self._sim.step()
+        self._step_and_track()
 
         self._reward_engine.reset(self._sim.traci)
         state = self._encoder.encode(self._sim.traci)
         obs = np.asarray(state.grid, dtype=np.float32)
-        info = {"total_waiting_time_s": state.total_waiting_time_s}
+        info = {
+            "total_waiting_time_s": state.total_waiting_time_s,
+            "sim_time_s": float(state.step),
+            "arrived_vehicles": self._cumulative_arrived,
+        }
         return obs, info
 
     def step(self, action: int):
@@ -110,7 +116,7 @@ class SumoTrafficEnv(gym.Env):
         if direction != self._current_direction:
             self._apply_phase_transition(direction)
         else:
-            self._sim.step()
+            self._step_and_track()
         self._current_direction = direction
 
         state = self._encoder.encode(self._sim.traci)
@@ -120,7 +126,12 @@ class SumoTrafficEnv(gym.Env):
         truncated = state.step >= self.episode_duration_s
 
         obs = np.asarray(state.grid, dtype=np.float32)
-        info = {"total_waiting_time_s": state.total_waiting_time_s, "direction": direction.name}
+        info = {
+            "total_waiting_time_s": state.total_waiting_time_s,
+            "sim_time_s": float(state.step),
+            "arrived_vehicles": self._cumulative_arrived,
+            "direction": direction.name,
+        }
         return obs, reward, terminated, truncated, info
 
     def _apply_phase_transition(self, new_direction: Direction) -> None:
@@ -129,15 +140,26 @@ class SumoTrafficEnv(gym.Env):
             self._sim.traci.trafficlight.setRedYellowGreenState(
                 self.tls_id, self._tls.yellow_state(self._current_direction)
             )
-            self._sim.step(self._yellow_steps)
+            self._step_and_track(self._yellow_steps)
 
             self._sim.traci.trafficlight.setRedYellowGreenState(self.tls_id, self._tls.all_red_state())
-            self._sim.step(self._all_red_steps)
+            self._step_and_track(self._all_red_steps)
 
         self._sim.traci.trafficlight.setRedYellowGreenState(
             self.tls_id, self._tls.green_state(new_direction)
         )
-        self._sim.step()
+        self._step_and_track()
+
+    def _step_and_track(self, n: int = 1) -> None:
+        """Advance n simulation steps, accumulating arrived-vehicle counts
+        along the way. Must step one-at-a-time (not TraciSession.step(n) in
+        one call) so no arrivals during a multi-step yellow/all-red buffer
+        are missed - traci.simulation.getArrivedNumber() only reports
+        arrivals since the *last* simulationStep()."""
+        assert self._sim is not None
+        for _ in range(n):
+            self._sim.step(1)
+            self._cumulative_arrived += self._sim.traci.simulation.getArrivedNumber()
 
     def close(self) -> None:
         if self._sim is not None:
