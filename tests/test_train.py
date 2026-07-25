@@ -95,6 +95,7 @@ class TestTrainingPipelineSmoke:
             target_sync_every_episodes=1,
             checkpoint_dir=str(tmp_path),
             checkpoint_every_episodes=1,
+            show_progress_bar=False,
         )
         agent = train(cfg)
 
@@ -114,6 +115,7 @@ class TestTrainingPipelineSmoke:
             min_replay_size=4,
             checkpoint_dir=str(tmp_path),
             checkpoint_every_episodes=1,
+            show_progress_bar=False,
         )
         train(cfg)
 

@@ -12,6 +12,7 @@ dependencies = [
     "gymnasium>=0.29",
     "numpy>=1.26",
     "torch>=2.2",
+    "tqdm>=4.66",
 ]
 
 [project.optional-dependencies]

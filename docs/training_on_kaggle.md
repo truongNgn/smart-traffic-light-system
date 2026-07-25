@@ -77,11 +77,33 @@ cfg = TrainingConfig(
 agent = train(cfg)
 ```
 
-Progress is logged as structured JSON (one line per episode: reward,
-epsilon, avg_loss, final_waiting_time_s) - watch it in the cell output to
-confirm the reward trend is moving in the right direction before committing
-to a long run. A final `train.complete` line is logged once `num_episodes`
-is reached.
+A live `tqdm` progress bar (renders as a proper widget in Jupyter/Kaggle)
+shows reward/epsilon/loss/waiting-time updating every episode. Full
+structured JSON detail (same fields, plus `replay_size`) still prints every
+`log_every_episodes` (default 10) for a persistent record, and a final
+`train.complete` line logs once `num_episodes` is reached.
+
+### Cutting wall-clock time
+
+Two knobs reduce *overhead* without changing what gets learned:
+
+- `train_every_n_steps` (default **4**): run a gradient step every N
+  environment steps instead of every single one - the standard DQN setting
+  (Atari/Rainbow implementations default to 4 too). The replay buffer still
+  gets a transition every step; only the optimizer call is throttled.
+- `backend="libsumo"` (already the default) - see below.
+
+To reduce *actual* simulated work (fewer total steps, so training genuinely
+finishes sooner - but also less experience per episode):
+
+```python
+cfg = TrainingConfig(
+    num_episodes=200,          # fewer episodes
+    episode_duration_s=1800,   # shorter simulated horizon per episode (was 3600)
+    epsilon_decay_episodes=150,  # scale the exploration schedule down to match
+    ...
+)
+```
 
 ### Why the GPU looks idle during training
 

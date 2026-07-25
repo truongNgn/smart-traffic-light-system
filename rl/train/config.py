@@ -33,6 +33,14 @@ class TrainingConfig(BaseSettings):
     )
     gamma: float = Field(default=0.99, ge=0.0, le=1.0)
     learning_rate: float = Field(default=1e-4, gt=0.0)
+    train_every_n_steps: int = Field(
+        default=4,
+        ge=1,
+        description="Run a gradient step every N environment steps instead of every "
+        "single one - a standard DQN knob (e.g. Rainbow/DQN-Atari implementations "
+        "default to 4) that cuts optimizer/backward-pass overhead roughly N-fold "
+        "without changing what data ends up in the replay buffer.",
+    )
 
     # Epsilon-greedy exploration: linear decay from epsilon_start to
     # epsilon_end over epsilon_decay_episodes, then held at epsilon_end.
@@ -46,6 +54,16 @@ class TrainingConfig(BaseSettings):
     checkpoint_dir: str = Field(default="checkpoints")
     checkpoint_every_episodes: int = Field(default=25, ge=1)
     resume_from: str | None = Field(default=None)
+
+    # Display
+    log_every_episodes: int = Field(
+        default=10,
+        ge=1,
+        description="Full structured JSON log line every N episodes (the live progress "
+        "bar already shows every episode's stats - this just controls how much "
+        "detailed JSON gets printed/persisted alongside it).",
+    )
+    show_progress_bar: bool = Field(default=True)
 
     # Optional experiment tracking - only activates if `mlflow` is
     # importable; never a hard dependency for training to run.
