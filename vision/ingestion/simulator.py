@@ -17,10 +17,11 @@ logger = get_logger(component="video_simulator")
 class VideoStreamSimulator:
     """Simulates an RTSP stream by reading and looping a local .mp4 file."""
 
-    def __init__(self, video_path: str | Path, camera_id: str, target_fps: float = 30.0) -> None:
+    def __init__(self, video_path: str | Path, camera_id: str, target_fps: float = 30.0, loop: bool = True) -> None:
         self.video_path = str(video_path)
         self.camera_id = camera_id
         self.target_fps = target_fps
+        self.loop = loop
         self._cap = cv2.VideoCapture(self.video_path)
         
         if not self._cap.isOpened():
@@ -42,6 +43,9 @@ class VideoStreamSimulator:
             
             ret, frame = self._cap.read()
             if not ret:
+                if not self.loop:
+                    logger.info("End of video stream reached", camera_id=self.camera_id)
+                    break
                 # Loop back to beginning
                 logger.debug("Restarting video loop", camera_id=self.camera_id)
                 self._cap.set(cv2.CAP_PROP_POS_FRAMES, 0)

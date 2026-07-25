@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import argparse
 import time
 from pathlib import Path
 
@@ -43,6 +44,11 @@ def create_dummy_video(path: str, fps: int = 30, duration_s: int = 5) -> None:
 
 
 def main() -> None:
+    parser = argparse.ArgumentParser(description="Smoke test for Vision Pipeline")
+    parser.add_argument("--model", type=str, default=None, help="Path to the YOLO model (e.g., yolov8n.engine)")
+    parser.add_argument("--full", action="store_true", help="Run inference on the entire video without looping or 5s limit")
+    args = parser.parse_args()
+
     configure_logging()
     logger.info("Starting Vision Stage 1 Smoke Test")
     
@@ -51,8 +57,14 @@ def main() -> None:
         create_dummy_video(test_video)
 
     # 1. Initialize components
-    simulator = VideoStreamSimulator(video_path=test_video, camera_id="N", target_fps=vision_settings.camera_fps)
-    detector = YoloDetector(model_path=vision_settings.yolo_model_path)
+    model_path = args.model if args.model else vision_settings.yolo_model_path
+    loop_video = not args.full
+    simulator = VideoStreamSimulator(video_path=test_video, camera_id="N", target_fps=vision_settings.camera_fps, loop=loop_video)
+    detector = YoloDetector(
+        model_path=model_path,
+        conf_threshold=vision_settings.conf_threshold,
+        iou_threshold=vision_settings.iou_threshold,
+    )
     
     # We allow the bus connection to fail gracefully if Redis is not running locally outside Docker
     bus = None
@@ -91,7 +103,7 @@ def main() -> None:
             out_video.write(resized)
             
             frame_count += 1
-            if frame_count >= vision_settings.camera_fps * 5:  # Run for 5 seconds
+            if not args.full and frame_count >= vision_settings.camera_fps * 5:  # Run for 5 seconds by default
                 logger.info("Smoke test completed 5 seconds of video processing.")
                 break
                 

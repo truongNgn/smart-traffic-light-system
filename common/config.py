@@ -36,6 +36,7 @@ class SimulationSettings(BaseSettings):
         "simulation/traci_wrapper/session.py).",
     )
 
+
 class VisionSettings(BaseSettings):
     """Settings for the YOLO Vision pipeline (Engineer A)."""
 
@@ -48,6 +49,14 @@ class VisionSettings(BaseSettings):
     camera_fps: float = Field(
         default=30.0,
         description="Target FPS for the video stream simulator.",
+    )
+    conf_threshold: float = Field(
+        default=0.25,
+        description="Confidence threshold for YOLO detection.",
+    )
+    iou_threshold: float = Field(
+        default=0.45,
+        description="NMS IoU threshold for YOLO detection.",
     )
 
 

@@ -15,10 +15,12 @@ logger = get_logger(component="yolo_detector")
 class YoloDetector:
     """Wrapper around Ultralytics YOLOv8 for detection and ByteTrack tracking."""
 
-    def __init__(self, model_path: str = "yolov8n.pt", device: str | None = None) -> None:
+    def __init__(self, model_path: str, conf_threshold: float = 0.25, iou_threshold: float = 0.45) -> None:
+        """Initialize the YOLO model."""
         logger.info("Loading YOLO model", model_path=model_path)
         self.model = YOLO(model_path)
-        self.device = device
+        self.conf_threshold = conf_threshold
+        self.iou_threshold = iou_threshold
 
     def process_frame(self, frame: np.ndarray) -> tuple[np.ndarray, Dict[str, int], Dict[int, tuple[float, float]]]:
         """
@@ -31,7 +33,14 @@ class YoloDetector:
         # Run YOLO with integrated ByteTrack
         # persist=True keeps tracking IDs consistent across frames
         # tracker="bytetrack.yaml" uses the built-in ByteTrack
-        results = self.model.track(frame, persist=True, tracker="bytetrack.yaml", verbose=False)
+        results = self.model.track(
+            frame, 
+            persist=True, 
+            tracker="bytetrack.yaml", 
+            conf=self.conf_threshold,
+            iou=self.iou_threshold,
+            verbose=False
+        )
         
         class_counts: Dict[str, int] = {}
         centroids: Dict[int, tuple[float, float]] = {}
