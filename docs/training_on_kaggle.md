@@ -8,21 +8,32 @@ changes needed between local smoke-testing and a real Kaggle run.
 ## 1. Notebook settings
 
 - Accelerator: **GPU T4 x2** (or any available GPU)
-- Internet: **On** (needed to `apt-get install sumo` and `git clone`)
+- Internet: **On** (needed to `pip install` and `git clone`)
 
 ## 2. Setup cell
 
+Install SUMO from the `eclipse-sumo` PyPI package, **not** `apt-get install
+sumo`. The Ubuntu apt package conflicts with libraries already present on
+Kaggle's image and makes `netconvert` crash with a segfault
+(`Command '[...netconvert...]' died with <Signals.SIGSEGV: 11>`) even
+though the SUMO config itself is fine. `eclipse-sumo` ships self-contained
+binaries that don't touch system libraries.
+
 ```bash
-!apt-get update -qq && apt-get install -y -qq sumo sumo-tools sumo-doc
+!pip install -q eclipse-sumo traci sumolib
 !git clone https://github.com/truongNgn/smart-traffic-light-system.git
 %cd smart-traffic-light-system
-!pip install -q pydantic pydantic-settings structlog traci sumolib gymnasium numpy
+!pip install -q pydantic pydantic-settings structlog gymnasium numpy
 # torch is already preinstalled on Kaggle's GPU image - don't reinstall it
 ```
 
 ```python
 import os
-os.environ["SUMO_HOME"] = "/usr/share/sumo"
+import sumo
+
+# eclipse-sumo bundles its own binaries + tools/ under the installed
+# package directory - point SUMO_HOME there instead of a system path.
+os.environ["SUMO_HOME"] = os.path.dirname(sumo.__file__)
 ```
 
 Verify SUMO is visible before doing anything else:
@@ -30,6 +41,10 @@ Verify SUMO is visible before doing anything else:
 ```bash
 !sumo --version
 ```
+
+If that fails to print a version (no wheel for this platform), fall back to
+`apt-get install sumo sumo-tools sumo-doc` with `SUMO_HOME=/usr/share/sumo`
+as a last resort - it works on some Kaggle images, just not reliably.
 
 ## 3. Build the network and generate demand
 
