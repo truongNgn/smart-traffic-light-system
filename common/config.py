@@ -36,5 +36,31 @@ class SimulationSettings(BaseSettings):
         "simulation/traci_wrapper/session.py).",
     )
 
+class VisionSettings(BaseSettings):
+    """Settings for the YOLO Vision pipeline (Engineer A)."""
+
+    model_config = SettingsConfigDict(env_prefix="VISION_", env_file=".env", extra="ignore")
+
+    yolo_model_path: str = Field(
+        default="yolov8n.pt",
+        description="Path or name of the YOLOv8 model.",
+    )
+    camera_fps: float = Field(
+        default=30.0,
+        description="Target FPS for the video stream simulator.",
+    )
+
+
+class RedisSettings(BaseSettings):
+    """Settings for the Redis Message Bus."""
+
+    model_config = SettingsConfigDict(env_prefix="REDIS_", env_file=".env", extra="ignore")
+
+    host: str = Field(default="localhost")
+    port: int = Field(default=6379)
+    stream_name: str = Field(default="vehicle_counts")
+
 
 settings = SimulationSettings()
+vision_settings = VisionSettings()
+redis_settings = RedisSettings()

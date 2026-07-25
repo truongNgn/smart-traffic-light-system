@@ -13,6 +13,10 @@ dependencies = [
     "numpy>=1.26",
     "torch>=2.2",
     "tqdm>=4.66",
+    "ultralytics>=8.1",
+    "opencv-python>=4.9",
+    "redis>=5.0",
+    "lapx>=0.5",
 ]
 
 [project.optional-dependencies]
@@ -43,3 +47,7 @@ warn_unused_ignores = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+[tool.setuptools]
+packages = ["common", "rl", "simulation", "vision", "streaming"]
+
