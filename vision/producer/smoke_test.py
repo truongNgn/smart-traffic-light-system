@@ -19,21 +19,27 @@ logger = get_logger(component="smoke_test")
 
 
 def create_dummy_video(path: str, fps: int = 30, duration_s: int = 5) -> None:
-    """Generate a simple video with a moving rectangle to simulate traffic."""
-    logger.info("Generating dummy video", path=path)
-    width, height = 640, 480
-    fourcc = cv2.VideoWriter_fourcc(*'mp4v')  # type: ignore
-    out = cv2.VideoWriter(path, fourcc, fps, (width, height))
+    """Download a real traffic sample video so YOLO actually detects cars."""
+    import urllib.request
     
-    for i in range(fps * duration_s):
-        frame = np.zeros((height, width, 3), dtype=np.uint8)
-        # Draw a white rectangle moving left to right
-        x = (i * 5) % width
-        y = height // 2
-        cv2.rectangle(frame, (x, y - 20), (x + 80, y + 20), (255, 255, 255), -1)
-        out.write(frame)
-        
-    out.release()
+    url = "https://github.com/intel-iot-devkit/sample-videos/raw/master/car-detection.mp4"
+    logger.info("Downloading real sample traffic video...", url=url, path=path)
+    try:
+        urllib.request.urlretrieve(url, path)
+        logger.info("Download complete.")
+    except Exception as e:
+        logger.error("Failed to download sample video.", error=str(e))
+        # Fallback to the old dummy video if download fails
+        width, height = 640, 480
+        fourcc = cv2.VideoWriter_fourcc(*'mp4v')  # type: ignore
+        out = cv2.VideoWriter(path, fourcc, fps, (width, height))
+        for i in range(fps * duration_s):
+            frame = np.zeros((height, width, 3), dtype=np.uint8)
+            x = (i * 5) % width
+            y = height // 2
+            cv2.rectangle(frame, (x, y - 20), (x + 80, y + 20), (255, 255, 255), -1)
+            out.write(frame)
+        out.release()
 
 
 def main() -> None:

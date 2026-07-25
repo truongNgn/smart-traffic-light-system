@@ -42,9 +42,9 @@ class YoloDetector:
             annotated_frame = result.plot()  # Draw bounding boxes and IDs
             
             if result.boxes is not None and result.boxes.id is not None:
-                boxes = result.boxes.xyxy.cpu().numpy()
-                track_ids = result.boxes.id.int().cpu().tolist()
-                class_ids = result.boxes.cls.int().cpu().tolist()
+                boxes = result.boxes.xyxy.cpu().numpy()  # type: ignore
+                track_ids = result.boxes.id.int().cpu().tolist()  # type: ignore
+                class_ids = result.boxes.cls.int().cpu().tolist()  # type: ignore
                 
                 for box, track_id, class_id in zip(boxes, track_ids, class_ids):
                     class_name = self.model.names[class_id]
