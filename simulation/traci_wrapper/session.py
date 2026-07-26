@@ -167,6 +167,12 @@ class TraciSession:
             "--start" if self.use_gui else "--no-step-log",
             "true",
         ]
+        if self.use_gui:
+            # Without this, sumo-gui pops up a blocking "Simulation ended -
+            # close all open files and views?" dialog once TraCI ends the
+            # episode, and the whole process (not just the GUI) hangs until
+            # a human clicks it - fatal for any unattended/automated run.
+            args.append("--quit-on-end")
         args.extend(self.extra_args)
         return args
 

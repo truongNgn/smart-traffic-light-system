@@ -48,6 +48,7 @@ class SumoTrafficEnv(gym.Env):
         episode_duration_s: float = 3600.0,
         initial_direction: Direction = Direction.EAST,
         backend: str = "traci",
+        sumo_extra_args: list[str] | None = None,
     ) -> None:
         super().__init__()
         self.sumocfg_path = sumocfg_path
@@ -58,6 +59,7 @@ class SumoTrafficEnv(gym.Env):
         self.episode_duration_s = episode_duration_s
         self.initial_direction = initial_direction
         self.backend = backend
+        self.sumo_extra_args = sumo_extra_args or []
 
         self.action_space = spaces.Discrete(NUM_ACTIONS)
         self.observation_space = spaces.Box(
@@ -86,6 +88,7 @@ class SumoTrafficEnv(gym.Env):
             seed=episode_seed,
             step_length_s=self.step_length_s,
             backend=self.backend,
+            extra_args=self.sumo_extra_args,
         ).start()
         self._tls = TlsController(self._sim.traci, self.tls_id)
         self._cumulative_arrived = 0

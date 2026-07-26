@@ -48,22 +48,32 @@ def compare(
     seeds: list[int] = (1, 2, 3),
     fixed_green_duration_s: float = 20.0,
     backend: str = "libsumo",
+    use_gui: bool = False,
 ) -> dict:
     configure_logging()
 
-    try:
-        import libsumo  # noqa: F401
-    except ImportError:
-        if backend == "libsumo":
-            logger.warning("benchmark.libsumo_not_installed_falling_back_to_traci")
-            backend = "traci"
+    if use_gui:
+        # sumo-gui only exists under the traci backend - libsumo is
+        # in-process and headless by construction (see
+        # simulation/traci_wrapper/session.py).
+        backend = "traci"
+    else:
+        try:
+            import libsumo  # noqa: F401
+        except ImportError:
+            if backend == "libsumo":
+                logger.warning("benchmark.libsumo_not_installed_falling_back_to_traci")
+                backend = "traci"
 
     agent = DQNAgent()
     episode = load_checkpoint(checkpoint_path, agent)
     logger.info("benchmark.checkpoint_loaded", checkpoint=checkpoint_path, trained_episode=episode)
 
     env = SumoTrafficEnv(
-        sumocfg_path=sumocfg_path, episode_duration_s=episode_duration_s, backend=backend
+        sumocfg_path=sumocfg_path,
+        episode_duration_s=episode_duration_s,
+        backend=backend,
+        use_gui=use_gui,
     )
 
     fixed_time_policy = FixedTimePolicy(green_duration_s=fixed_green_duration_s)
@@ -158,6 +168,9 @@ def main() -> None:
     parser.add_argument("--seeds", type=int, nargs="+", default=[1, 2, 3])
     parser.add_argument("--fixed-green-duration", type=float, default=20.0)
     parser.add_argument("--backend", choices=["libsumo", "traci"], default="libsumo")
+    parser.add_argument(
+        "--gui", dest="use_gui", action="store_true", help="Watch it run in sumo-gui."
+    )
     parser.add_argument("--output", default=None, help="Output JSON path (default: auto-named under benchmark/results/).")
     args = parser.parse_args()
 
@@ -167,6 +180,7 @@ def main() -> None:
         episode_duration_s=args.episode_duration_s,
         seeds=args.seeds,
         fixed_green_duration_s=args.fixed_green_duration,
+        use_gui=args.use_gui,
         backend=args.backend,
     )
 
