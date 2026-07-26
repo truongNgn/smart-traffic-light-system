@@ -37,9 +37,9 @@ VEHICLE_CLASS_TO_SUMO_VCLASS: dict[VehicleClass, str] = {
     VehicleClass.TRUCK: "truck",
 }
 
-# --- Action space ----------------------------------------------------------
+# --- Geometry directions ---------------------------------------------------
 class Direction(IntEnum):
-    """4 discrete actions: which approach gets the green phase."""
+    """The four physical approaches represented by the 80-cell state."""
 
     EAST = 0
     NORTH = 1
@@ -47,7 +47,21 @@ class Direction(IntEnum):
     SOUTH = 3
 
 
-NUM_ACTIONS: int = len(Direction)
+# --- Action space ----------------------------------------------------------
+class PhaseAction(IntEnum):
+    """Traffic-police-style green phases: both opposite approaches run together."""
+
+    EAST_WEST = 0
+    NORTH_SOUTH = 1
+
+
+PHASE_DIRECTIONS: dict[PhaseAction, tuple[Direction, Direction]] = {
+    PhaseAction.EAST_WEST: (Direction.EAST, Direction.WEST),
+    PhaseAction.NORTH_SOUTH: (Direction.NORTH, Direction.SOUTH),
+}
+
+
+NUM_ACTIONS: int = len(PhaseAction)
 
 # --- Mandatory phase-switch safety buffers --------------------------------
 GREEN_DURATION_S: float = 10.0

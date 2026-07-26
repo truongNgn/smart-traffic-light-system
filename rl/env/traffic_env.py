@@ -28,7 +28,7 @@ from common.constants import (
     GRID_CELLS_TOTAL,
     NUM_ACTIONS,
     YELLOW_DURATION_S,
-    Direction,
+    PhaseAction,
 )
 from simulation.state.grid_encoder import GridEncoder
 from simulation.traci_wrapper import TlsController, TraciSession
@@ -48,7 +48,7 @@ class SumoTrafficEnv(gym.Env):
         step_length_s: float = DEFAULT_STEP_LENGTH_S,
         episode_duration_s: float = 3600.0,
         green_duration_s: float = GREEN_DURATION_S,
-        initial_direction: Direction = Direction.EAST,
+        initial_phase: PhaseAction = PhaseAction.EAST_WEST,
         backend: str = "traci",
         sumo_extra_args: list[str] | None = None,
     ) -> None:
@@ -60,7 +60,7 @@ class SumoTrafficEnv(gym.Env):
         self.step_length_s = step_length_s
         self.episode_duration_s = episode_duration_s
         self.green_duration_s = green_duration_s
-        self.initial_direction = initial_direction
+        self.initial_phase = initial_phase
         self.backend = backend
         self.sumo_extra_args = sumo_extra_args or []
 
@@ -77,7 +77,7 @@ class SumoTrafficEnv(gym.Env):
         self._tls: TlsController | None = None
         self._encoder = GridEncoder()
         self._reward_engine = WaitingTimeReward()
-        self._current_direction: Direction | None = None
+        self._current_phase: PhaseAction | None = None
         self._cumulative_arrived = 0
 
     def reset(self, *, seed: int | None = None, options: dict | None = None):  # noqa: ANN001
@@ -100,9 +100,9 @@ class SumoTrafficEnv(gym.Env):
         # First green is granted directly - there's no prior direction to
         # transition away from, so no yellow/all-red buffer applies yet.
         self._sim.traci.trafficlight.setRedYellowGreenState(
-            self.tls_id, self._tls.green_state(self.initial_direction)
+            self.tls_id, self._tls.green_state(self.initial_phase)
         )
-        self._current_direction = self.initial_direction
+        self._current_phase = self.initial_phase
         self._step_and_track()
 
         self._reward_engine.reset(self._sim.traci)
@@ -119,12 +119,12 @@ class SumoTrafficEnv(gym.Env):
         if self._sim is None:
             raise RuntimeError("Call reset() before step().")
 
-        direction = Direction(action)
-        if direction != self._current_direction:
-            self._apply_phase_transition(direction)
+        phase = PhaseAction(action)
+        if phase != self._current_phase:
+            self._apply_phase_transition(phase)
         else:
             self._step_and_track(self._green_steps)
-        self._current_direction = direction
+        self._current_phase = phase
 
         state = self._encoder.encode(self._sim.traci)
         reward = self._reward_engine.step(self._sim.traci)
@@ -137,15 +137,15 @@ class SumoTrafficEnv(gym.Env):
             "total_waiting_time_s": state.total_waiting_time_s,
             "sim_time_s": float(state.step),
             "arrived_vehicles": self._cumulative_arrived,
-            "direction": direction.name,
+            "phase": phase.name,
         }
         return obs, reward, terminated, truncated, info
 
-    def _apply_phase_transition(self, new_direction: Direction) -> None:
+    def _apply_phase_transition(self, new_phase: PhaseAction) -> None:
         assert self._sim is not None and self._tls is not None
-        if self._current_direction is not None:
+        if self._current_phase is not None:
             self._sim.traci.trafficlight.setRedYellowGreenState(
-                self.tls_id, self._tls.yellow_state(self._current_direction)
+                self.tls_id, self._tls.yellow_state(self._current_phase)
             )
             self._step_and_track(self._yellow_steps)
 
@@ -153,7 +153,7 @@ class SumoTrafficEnv(gym.Env):
             self._step_and_track(self._all_red_steps)
 
         self._sim.traci.trafficlight.setRedYellowGreenState(
-            self.tls_id, self._tls.green_state(new_direction)
+            self.tls_id, self._tls.green_state(new_phase)
         )
         self._step_and_track(self._green_steps)
 
