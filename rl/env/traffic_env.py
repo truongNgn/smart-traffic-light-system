@@ -24,6 +24,7 @@ from common.constants import (
     ALL_RED_DURATION_S,
     DEFAULT_SEED,
     DEFAULT_STEP_LENGTH_S,
+    GREEN_DURATION_S,
     GRID_CELLS_TOTAL,
     NUM_ACTIONS,
     YELLOW_DURATION_S,
@@ -46,6 +47,7 @@ class SumoTrafficEnv(gym.Env):
         seed: int = DEFAULT_SEED,
         step_length_s: float = DEFAULT_STEP_LENGTH_S,
         episode_duration_s: float = 3600.0,
+        green_duration_s: float = GREEN_DURATION_S,
         initial_direction: Direction = Direction.EAST,
         backend: str = "traci",
         sumo_extra_args: list[str] | None = None,
@@ -57,6 +59,7 @@ class SumoTrafficEnv(gym.Env):
         self.seed_value = seed
         self.step_length_s = step_length_s
         self.episode_duration_s = episode_duration_s
+        self.green_duration_s = green_duration_s
         self.initial_direction = initial_direction
         self.backend = backend
         self.sumo_extra_args = sumo_extra_args or []
@@ -66,6 +69,7 @@ class SumoTrafficEnv(gym.Env):
             low=0.0, high=1.0, shape=(GRID_CELLS_TOTAL,), dtype=np.float32
         )
 
+        self._green_steps = max(1, round(green_duration_s / step_length_s))
         self._yellow_steps = max(1, round(YELLOW_DURATION_S / step_length_s))
         self._all_red_steps = max(1, round(ALL_RED_DURATION_S / step_length_s))
 
@@ -119,7 +123,7 @@ class SumoTrafficEnv(gym.Env):
         if direction != self._current_direction:
             self._apply_phase_transition(direction)
         else:
-            self._step_and_track()
+            self._step_and_track(self._green_steps)
         self._current_direction = direction
 
         state = self._encoder.encode(self._sim.traci)
@@ -151,7 +155,7 @@ class SumoTrafficEnv(gym.Env):
         self._sim.traci.trafficlight.setRedYellowGreenState(
             self.tls_id, self._tls.green_state(new_direction)
         )
-        self._step_and_track()
+        self._step_and_track(self._green_steps)
 
     def _step_and_track(self, n: int = 1) -> None:
         """Advance n simulation steps, accumulating arrived-vehicle counts

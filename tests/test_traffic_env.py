@@ -69,9 +69,9 @@ class TestSumoTrafficEnv:
             step_before = env._sim.traci.simulation.getTime()
             obs, reward, terminated, truncated, info = env.step(initial_direction_action)
             step_after = env._sim.traci.simulation.getTime()
-            # Staying on the same direction should advance exactly one
-            # control step (step_length_s), not yellow_steps + all_red_steps + 1.
-            assert step_after - step_before == env.step_length_s
+            # Staying on the same direction should hold the selected green
+            # for the configured control interval, without yellow/all-red.
+            assert step_after - step_before == env._green_steps * env.step_length_s
             assert obs.shape == (GRID_CELLS_TOTAL,)
         finally:
             env.close()
@@ -88,7 +88,7 @@ class TestSumoTrafficEnv:
             step_after = env._sim.traci.simulation.getTime()
 
             expected_steps = (
-                env._yellow_steps + env._all_red_steps + 1
+                env._yellow_steps + env._all_red_steps + env._green_steps
             ) * env.step_length_s
             assert step_after - step_before == expected_steps
             assert int(env._current_direction.value) == other_action
@@ -147,7 +147,9 @@ class TestSumoTrafficEnvLibsumoBackend:
             env.step(other_action)
             step_after = env._sim.traci.simulation.getTime()
 
-            expected_steps = (env._yellow_steps + env._all_red_steps + 1) * env.step_length_s
+            expected_steps = (
+                env._yellow_steps + env._all_red_steps + env._green_steps
+            ) * env.step_length_s
             assert step_after - step_before == expected_steps
         finally:
             env.close()

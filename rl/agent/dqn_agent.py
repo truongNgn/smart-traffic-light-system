@@ -68,13 +68,15 @@ class DQNAgent:
         q_values = self.policy_net(states).gather(1, actions.unsqueeze(1)).squeeze(1)
 
         with torch.no_grad():
-            next_q_values = self.target_net(next_states).max(dim=1).values
+            next_actions = self.policy_net(next_states).argmax(dim=1, keepdim=True)
+            next_q_values = self.target_net(next_states).gather(1, next_actions).squeeze(1)
             targets = rewards + self.gamma * next_q_values * (1.0 - dones)
 
         loss = self.loss_fn(q_values, targets)
 
         self.optimizer.zero_grad()
         loss.backward()
+        nn.utils.clip_grad_norm_(self.policy_net.parameters(), max_norm=10.0)
         self.optimizer.step()
 
         return float(loss.item())

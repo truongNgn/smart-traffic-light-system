@@ -17,6 +17,11 @@ class TrainingConfig(BaseSettings):
     use_gui: bool = Field(default=False)
     seed: int = Field(default=DEFAULT_SEED)
     episode_duration_s: float = Field(default=3600.0)
+    green_duration_s: float = Field(
+        default=10.0,
+        gt=0.0,
+        description="Seconds to hold each selected green action; 10s matches the paper.",
+    )
     backend: str = Field(
         default="libsumo",
         description="'libsumo' (default, ~8x faster - training never needs a GUI) or "

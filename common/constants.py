@@ -50,6 +50,9 @@ class Direction(IntEnum):
 NUM_ACTIONS: int = len(Direction)
 
 # --- Mandatory phase-switch safety buffers --------------------------------
+GREEN_DURATION_S: float = 10.0
+"""Minimum green phase held for each agent action, matching Sahal et al. 2023."""
+
 YELLOW_DURATION_S: float = 2.0
 ALL_RED_DURATION_S: float = 2.0
 
