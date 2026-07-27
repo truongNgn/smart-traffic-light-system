@@ -22,6 +22,10 @@ class TrainingConfig(BaseSettings):
         gt=0.0,
         description="Seconds to hold each selected green action; 10s matches the paper.",
     )
+    max_red_time_s: float | None = Field(
+        default=90.0,
+        description="Safety guard: force a phase if it has been red longer than this.",
+    )
     backend: str = Field(
         default="libsumo",
         description="'libsumo' (default, ~8x faster - training never needs a GUI) or "

@@ -48,6 +48,7 @@ class SumoTrafficEnv(gym.Env):
         step_length_s: float = DEFAULT_STEP_LENGTH_S,
         episode_duration_s: float = 3600.0,
         green_duration_s: float = GREEN_DURATION_S,
+        max_red_time_s: float | None = 90.0,
         initial_phase: PhaseAction = PhaseAction.EAST_WEST,
         backend: str = "traci",
         sumo_extra_args: list[str] | None = None,
@@ -60,6 +61,7 @@ class SumoTrafficEnv(gym.Env):
         self.step_length_s = step_length_s
         self.episode_duration_s = episode_duration_s
         self.green_duration_s = green_duration_s
+        self.max_red_time_s = max_red_time_s
         self.initial_phase = initial_phase
         self.backend = backend
         self.sumo_extra_args = sumo_extra_args or []
@@ -78,6 +80,8 @@ class SumoTrafficEnv(gym.Env):
         self._encoder = GridEncoder()
         self._reward_engine = WaitingTimeReward()
         self._current_phase: PhaseAction | None = None
+        self._red_time_by_phase: dict[PhaseAction, float] = {phase: 0.0 for phase in PhaseAction}
+        self._last_action_was_forced = False
         self._cumulative_arrived = 0
 
     def reset(self, *, seed: int | None = None, options: dict | None = None):  # noqa: ANN001
@@ -96,6 +100,8 @@ class SumoTrafficEnv(gym.Env):
         ).start()
         self._tls = TlsController(self._sim.traci, self.tls_id)
         self._cumulative_arrived = 0
+        self._red_time_by_phase = {phase: 0.0 for phase in PhaseAction}
+        self._last_action_was_forced = False
 
         # First green is granted directly - there's no prior direction to
         # transition away from, so no yellow/all-red buffer applies yet.
@@ -103,7 +109,7 @@ class SumoTrafficEnv(gym.Env):
             self.tls_id, self._tls.green_state(self.initial_phase)
         )
         self._current_phase = self.initial_phase
-        self._step_and_track()
+        self._step_and_track(green_phase=self.initial_phase)
 
         self._reward_engine.reset(self._sim.traci)
         state = self._encoder.encode(self._sim.traci)
@@ -119,11 +125,12 @@ class SumoTrafficEnv(gym.Env):
         if self._sim is None:
             raise RuntimeError("Call reset() before step().")
 
-        phase = PhaseAction(action)
+        requested_phase = PhaseAction(action)
+        phase = self._phase_after_safety_guard(requested_phase)
         if phase != self._current_phase:
             self._apply_phase_transition(phase)
         else:
-            self._step_and_track(self._green_steps)
+            self._step_and_track(self._green_steps, green_phase=phase)
         self._current_phase = phase
 
         state = self._encoder.encode(self._sim.traci)
@@ -138,8 +145,27 @@ class SumoTrafficEnv(gym.Env):
             "sim_time_s": float(state.step),
             "arrived_vehicles": self._cumulative_arrived,
             "phase": phase.name,
+            "requested_phase": requested_phase.name,
+            "action_forced_by_guard": self._last_action_was_forced,
+            "red_time_s": {phase.name: red_time for phase, red_time in self._red_time_by_phase.items()},
         }
         return obs, reward, terminated, truncated, info
+
+    def _phase_after_safety_guard(self, requested_phase: PhaseAction) -> PhaseAction:
+        self._last_action_was_forced = False
+        if self.max_red_time_s is None:
+            return requested_phase
+
+        starving_phases = [
+            phase
+            for phase, red_time_s in self._red_time_by_phase.items()
+            if phase != self._current_phase and red_time_s >= self.max_red_time_s
+        ]
+        if not starving_phases:
+            return requested_phase
+
+        self._last_action_was_forced = starving_phases[0] != requested_phase
+        return starving_phases[0]
 
     def _apply_phase_transition(self, new_phase: PhaseAction) -> None:
         assert self._sim is not None and self._tls is not None
@@ -155,9 +181,9 @@ class SumoTrafficEnv(gym.Env):
         self._sim.traci.trafficlight.setRedYellowGreenState(
             self.tls_id, self._tls.green_state(new_phase)
         )
-        self._step_and_track(self._green_steps)
+        self._step_and_track(self._green_steps, green_phase=new_phase)
 
-    def _step_and_track(self, n: int = 1) -> None:
+    def _step_and_track(self, n: int = 1, *, green_phase: PhaseAction | None = None) -> None:
         """Advance n simulation steps, accumulating arrived-vehicle counts
         along the way. Must step one-at-a-time (not TraciSession.step(n) in
         one call) so no arrivals during a multi-step yellow/all-red buffer
@@ -166,7 +192,15 @@ class SumoTrafficEnv(gym.Env):
         assert self._sim is not None
         for _ in range(n):
             self._sim.step(1)
+            self._update_red_times(green_phase)
             self._cumulative_arrived += self._sim.traci.simulation.getArrivedNumber()
+
+    def _update_red_times(self, green_phase: PhaseAction | None) -> None:
+        for phase in PhaseAction:
+            if phase == green_phase:
+                self._red_time_by_phase[phase] = 0.0
+            else:
+                self._red_time_by_phase[phase] += self.step_length_s
 
     def close(self) -> None:
         if self._sim is not None:

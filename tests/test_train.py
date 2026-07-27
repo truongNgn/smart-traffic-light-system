@@ -65,13 +65,13 @@ class TestCheckpointRoundTrip:
 def _dummy_batch():
     import numpy as np
 
-    from common.constants import DQN_INPUT_SIZE
+    from common.constants import DQN_INPUT_SIZE, DQN_OUTPUT_SIZE
     from rl.agent.replay_buffer import Transition
 
     return [
         Transition(
             state=np.zeros(DQN_INPUT_SIZE, dtype=np.float32),
-            action=i % 4,
+            action=i % DQN_OUTPUT_SIZE,
             reward=1.0,
             next_state=np.zeros(DQN_INPUT_SIZE, dtype=np.float32),
             done=False,

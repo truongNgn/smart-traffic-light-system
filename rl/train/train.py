@@ -65,6 +65,7 @@ def train(cfg: TrainingConfig) -> DQNAgent:
         seed=cfg.seed,
         episode_duration_s=cfg.episode_duration_s,
         green_duration_s=cfg.green_duration_s,
+        max_red_time_s=cfg.max_red_time_s,
         backend=backend,
     )
     agent = DQNAgent(learning_rate=cfg.learning_rate, gamma=cfg.gamma, seed=cfg.seed)
