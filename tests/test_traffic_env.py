@@ -95,8 +95,13 @@ class TestSumoTrafficEnv:
         finally:
             env.close()
 
-    def test_max_red_time_guard_forces_starving_phase(self) -> None:
-        env = SumoTrafficEnv(sumocfg_path=TEST_SUMOCFG, seed=1, max_red_time_s=5.0)
+    def test_hard_red_time_guard_forces_starving_phase(self) -> None:
+        env = SumoTrafficEnv(
+            sumocfg_path=TEST_SUMOCFG,
+            seed=1,
+            max_red_time_s=None,
+            hard_red_time_s=5.0,
+        )
         try:
             env.reset()
             initial_phase_action = int(env._current_phase.value)
@@ -107,6 +112,27 @@ class TestSumoTrafficEnv:
             assert info["action_forced_by_guard"] is True
             assert int(env._current_phase.value) != initial_phase_action
             assert info["phase"] != info["requested_phase"]
+            assert info["guard_reason"] == "hard_red_time"
+        finally:
+            env.close()
+
+    def test_soft_red_time_guard_waits_for_queue_or_waiting_pressure(self) -> None:
+        env = SumoTrafficEnv(
+            sumocfg_path=TEST_SUMOCFG,
+            seed=1,
+            soft_red_time_s=5.0,
+            hard_red_time_s=999.0,
+            starving_queue_threshold=999,
+            starving_wait_time_s=999.0,
+        )
+        try:
+            env.reset()
+            initial_phase_action = int(env._current_phase.value)
+            env.step(initial_phase_action)
+            obs, reward, terminated, truncated, info = env.step(initial_phase_action)
+
+            assert info["action_forced_by_guard"] is False
+            assert int(env._current_phase.value) == initial_phase_action
         finally:
             env.close()
 

@@ -49,6 +49,10 @@ class SumoTrafficEnv(gym.Env):
         episode_duration_s: float = 3600.0,
         green_duration_s: float = GREEN_DURATION_S,
         max_red_time_s: float | None = 90.0,
+        soft_red_time_s: float = 100.0,
+        hard_red_time_s: float = 150.0,
+        starving_queue_threshold: int = 8,
+        starving_wait_time_s: float = 300.0,
         initial_phase: PhaseAction = PhaseAction.EAST_WEST,
         backend: str = "traci",
         sumo_extra_args: list[str] | None = None,
@@ -62,6 +66,10 @@ class SumoTrafficEnv(gym.Env):
         self.episode_duration_s = episode_duration_s
         self.green_duration_s = green_duration_s
         self.max_red_time_s = max_red_time_s
+        self.soft_red_time_s = soft_red_time_s
+        self.hard_red_time_s = hard_red_time_s
+        self.starving_queue_threshold = starving_queue_threshold
+        self.starving_wait_time_s = starving_wait_time_s
         self.initial_phase = initial_phase
         self.backend = backend
         self.sumo_extra_args = sumo_extra_args or []
@@ -82,6 +90,7 @@ class SumoTrafficEnv(gym.Env):
         self._current_phase: PhaseAction | None = None
         self._red_time_by_phase: dict[PhaseAction, float] = {phase: 0.0 for phase in PhaseAction}
         self._last_action_was_forced = False
+        self._last_guard_reason: str | None = None
         self._cumulative_arrived = 0
 
     def reset(self, *, seed: int | None = None, options: dict | None = None):  # noqa: ANN001
@@ -102,6 +111,7 @@ class SumoTrafficEnv(gym.Env):
         self._cumulative_arrived = 0
         self._red_time_by_phase = {phase: 0.0 for phase in PhaseAction}
         self._last_action_was_forced = False
+        self._last_guard_reason = None
 
         # First green is granted directly - there's no prior direction to
         # transition away from, so no yellow/all-red buffer applies yet.
@@ -147,25 +157,53 @@ class SumoTrafficEnv(gym.Env):
             "phase": phase.name,
             "requested_phase": requested_phase.name,
             "action_forced_by_guard": self._last_action_was_forced,
+            "guard_reason": self._last_guard_reason,
             "red_time_s": {phase.name: red_time for phase, red_time in self._red_time_by_phase.items()},
         }
         return obs, reward, terminated, truncated, info
 
     def _phase_after_safety_guard(self, requested_phase: PhaseAction) -> PhaseAction:
         self._last_action_was_forced = False
-        if self.max_red_time_s is None:
+        self._last_guard_reason = None
+        if self.max_red_time_s is None and self.hard_red_time_s <= 0:
             return requested_phase
 
-        starving_phases = [
-            phase
+        forced_phase, reason = self._forced_phase_and_reason()
+        if forced_phase is None:
+            return requested_phase
+
+        self._last_action_was_forced = forced_phase != requested_phase
+        self._last_guard_reason = reason
+        return forced_phase
+
+    def _forced_phase_and_reason(self) -> tuple[PhaseAction | None, str | None]:
+        candidates = [
+            (phase, red_time_s)
             for phase, red_time_s in self._red_time_by_phase.items()
-            if phase != self._current_phase and red_time_s >= self.max_red_time_s
+            if phase != self._current_phase
         ]
-        if not starving_phases:
-            return requested_phase
+        if not candidates:
+            return None, None
 
-        self._last_action_was_forced = starving_phases[0] != requested_phase
-        return starving_phases[0]
+        hard_limit = self.hard_red_time_s
+        if self.max_red_time_s is not None:
+            hard_limit = max(hard_limit, self.max_red_time_s)
+
+        for phase, red_time_s in candidates:
+            if hard_limit > 0 and red_time_s >= hard_limit:
+                return phase, "hard_red_time"
+
+        for phase, red_time_s in candidates:
+            if red_time_s < self.soft_red_time_s:
+                continue
+            queue = self._phase_queue_length(phase)
+            waiting = self._phase_waiting_time(phase)
+            if queue >= self.starving_queue_threshold:
+                return phase, "soft_red_queue"
+            if waiting >= self.starving_wait_time_s:
+                return phase, "soft_red_wait"
+
+        return None, None
 
     def _apply_phase_transition(self, new_phase: PhaseAction) -> None:
         assert self._sim is not None and self._tls is not None
@@ -201,6 +239,31 @@ class SumoTrafficEnv(gym.Env):
                 self._red_time_by_phase[phase] = 0.0
             else:
                 self._red_time_by_phase[phase] += self.step_length_s
+
+    def _phase_queue_length(self, phase: PhaseAction) -> int:
+        assert self._sim is not None
+        edges = self._phase_edges(phase)
+        return sum(
+            1
+            for vehicle_id in self._sim.traci.vehicle.getIDList()
+            if self._sim.traci.vehicle.getRoadID(vehicle_id) in edges
+        )
+
+    def _phase_waiting_time(self, phase: PhaseAction) -> float:
+        assert self._sim is not None
+        edges = self._phase_edges(phase)
+        return sum(
+            self._sim.traci.vehicle.getWaitingTime(vehicle_id)
+            for vehicle_id in self._sim.traci.vehicle.getIDList()
+            if self._sim.traci.vehicle.getRoadID(vehicle_id) in edges
+        )
+
+    @staticmethod
+    def _phase_edges(phase: PhaseAction) -> set[str]:
+        from common.constants import PHASE_DIRECTIONS
+        from simulation.state.grid_encoder import APPROACH_EDGE_BY_DIRECTION
+
+        return {APPROACH_EDGE_BY_DIRECTION[direction] for direction in PHASE_DIRECTIONS[phase]}
 
     def close(self) -> None:
         if self._sim is not None:

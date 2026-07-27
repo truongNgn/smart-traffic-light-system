@@ -26,6 +26,24 @@ class TrainingConfig(BaseSettings):
         default=90.0,
         description="Safety guard: force a phase if it has been red longer than this.",
     )
+    soft_red_time_s: float = Field(
+        default=100.0,
+        description="Adaptive guard: after this red time, force only if queue/waiting is high.",
+    )
+    hard_red_time_s: float = Field(
+        default=150.0,
+        description="Absolute max red time cap even when the starving phase has light demand.",
+    )
+    starving_queue_threshold: int = Field(
+        default=8,
+        ge=0,
+        description="Queue threshold that activates the soft red-time guard.",
+    )
+    starving_wait_time_s: float = Field(
+        default=300.0,
+        ge=0.0,
+        description="Per-phase waiting-time threshold that activates the soft red-time guard.",
+    )
     backend: str = Field(
         default="libsumo",
         description="'libsumo' (default, ~8x faster - training never needs a GUI) or "
