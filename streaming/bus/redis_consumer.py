@@ -2,21 +2,19 @@
 
 import asyncio
 import json
-from typing import AsyncGenerator
+from typing import AsyncGenerator, List, Tuple
 
 import redis.asyncio as redis
 import structlog
-
-from common.schemas.vision import VehicleCountEvent
 
 logger = structlog.get_logger("redis_consumer")
 
 
 class RedisConsumer:
-    def __init__(self, host: str, port: int, stream_name: str):
+    def __init__(self, host: str, port: int, stream_names: List[str]):
         self.host = host
         self.port = port
-        self.stream_name = stream_name
+        self.stream_names = stream_names
         self.client = redis.Redis(host=self.host, port=self.port, decode_responses=True)
         self._running = False
 
@@ -29,31 +27,30 @@ class RedisConsumer:
         await self.client.aclose()
         logger.info("Disconnected from Redis (Consumer)")
 
-    async def listen(self, last_id: str = "$") -> AsyncGenerator[VehicleCountEvent, None]:
-        """Listen to the stream and yield events as they arrive."""
+    async def listen(self, last_ids: dict[str, str] = None) -> AsyncGenerator[Tuple[str, str], None]:
+        """Listen to multiple streams and yield (stream_name, raw_json) as they arrive."""
         self._running = True
-        logger.info("Listening to stream", stream=self.stream_name, starting_id=last_id)
+        
+        if last_ids is None:
+            last_ids = {name: "$" for name in self.stream_names}
+            
+        logger.info("Listening to streams", streams=self.stream_names, starting_ids=last_ids)
         
         while self._running:
             try:
                 # Block for up to 1 second
-                streams = await self.client.xread({self.stream_name: last_id}, count=10, block=1000)
+                streams = await self.client.xread(last_ids, count=10, block=1000)
                 if not streams:
                     continue
                     
-                from typing import cast, List, Tuple, Dict
+                from typing import cast, Dict
                 streams_typed = cast(List[Tuple[str, List[Tuple[str, Dict[str, str]]]]], streams)
                     
                 for stream_name, messages in streams_typed:
                     for message_id, data in messages:
-                        last_id = message_id
+                        last_ids[stream_name] = message_id
                         if "data" in data:
-                            try:
-                                payload = json.loads(data["data"])
-                                event = VehicleCountEvent(**payload)
-                                yield event
-                            except Exception as e:
-                                logger.error("Failed to parse event", error=str(e), data=data)
+                            yield stream_name, data["data"]
             except asyncio.CancelledError:
                 break
             except Exception as e:

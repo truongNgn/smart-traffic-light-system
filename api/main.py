@@ -1,4 +1,5 @@
 import asyncio
+import uvicorn
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -9,14 +10,16 @@ from api.routes import health, websocket
 from api.dependencies import broadcaster, redis_consumer
 from common.config import api_settings
 
+
 logger = structlog.get_logger("api_main")
 
 async def consume_events():
     """Background task to read from Redis and broadcast."""
     try:
         await redis_consumer.connect()
-        async for event in redis_consumer.listen(last_id="$"):
-            await broadcaster.broadcast(event)
+        async for stream_name, raw_json in redis_consumer.listen():
+            envelope = f'{{"topic": "{stream_name}", "payload": {raw_json}}}'
+            await broadcaster.broadcast(envelope)
     except Exception as e:
         logger.error("Error in consume_events background task", error=str(e))
 
@@ -49,5 +52,4 @@ app.include_router(health.router, tags=["Health"])
 app.include_router(websocket.router, tags=["WebSocket"])
 
 if __name__ == "__main__":
-    import uvicorn
     uvicorn.run("api.main:app", host=api_settings.host, port=api_settings.port, reload=True)

@@ -14,7 +14,7 @@ logger = structlog.get_logger("broadcaster")
 class Broadcaster:
     def __init__(self):
         self.connections: Set[WebSocket] = set()
-        self._queue: asyncio.Queue[VehicleCountEvent] = asyncio.Queue()
+        self._queue: asyncio.Queue[str] = asyncio.Queue()
         self._task = None
 
     async def connect(self, websocket: WebSocket):
@@ -27,20 +27,18 @@ class Broadcaster:
             self.connections.remove(websocket)
             logger.info("Client disconnected", active_clients=len(self.connections))
 
-    async def broadcast(self, event: VehicleCountEvent):
-        """Put event into the internal queue for async broadcasting."""
-        await self._queue.put(event)
+    async def broadcast(self, payload: str):
+        """Put string payload into the internal queue for async broadcasting."""
+        await self._queue.put(payload)
 
     async def _broadcast_loop(self):
         """Background task that reads from the queue and sends to all clients."""
         logger.info("Started broadcast loop")
         while True:
             try:
-                event = await self._queue.get()
+                payload = await self._queue.get()
                 if not self.connections:
                     continue
-                
-                payload = event.model_dump_json()
                 
                 # Send to all clients concurrently
                 tasks = []
