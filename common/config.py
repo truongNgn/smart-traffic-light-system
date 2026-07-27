@@ -63,7 +63,7 @@ class VisionSettings(BaseSettings):
     # or rely on speed calculation across the whole frame if ROIs aren't strictly defined.
     rois: dict[str, list[tuple[int, int]]] = Field(
         default={
-            "Lane-1": [(0, 300), (640, 300), (640, 480), (0, 480)],
+            "Lane-Center": [(250, 0), (390, 0), (390, 480), (250, 480)],
         },
         description="Dictionary mapping lane ID to a list of (x,y) polygon points.",
     )

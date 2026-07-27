@@ -8,9 +8,9 @@ import structlog
 
 from common.config import redis_settings, vision_settings
 from common.schemas.vision import VehicleCountEvent
-from streaming.bus.redis_client import RedisBus
+from streaming.bus.redis_client import RedisStreamBus
 from vision.detection.yolo import YoloDetector
-from vision.ingestion.simulator import VideoSimulator
+from vision.ingestion.simulator import VideoStreamSimulator
 from vision.tracking.roi import ZoneCounter
 from vision.tracking.speed import SpeedEstimator
 
@@ -35,23 +35,24 @@ def main() -> None:
 
     logger.info("Starting Vision Stream Producer", camera_id=args.camera_id, video=args.video)
 
-    # Initialize components
-    bus = RedisBus(
-        host=redis_settings.host,
-        port=redis_settings.port,
-        stream_name=redis_settings.stream_name,
-    )
-    
-    # Wait for Redis connection (simple retry loop for compose)
+    # Initialize components and wait for Redis connection
     while True:
         try:
-            bus.connect()
+            bus = RedisStreamBus(
+                host=redis_settings.host,
+                port=redis_settings.port,
+            )
             break
         except Exception as e:
             logger.warning("Waiting for Redis...", error=str(e))
             time.sleep(2.0)
 
-    simulator = VideoSimulator(args.video, target_fps=vision_settings.camera_fps, loop=True)
+    simulator = VideoStreamSimulator(
+        video_path=args.video,
+        camera_id=args.camera_id,
+        target_fps=vision_settings.camera_fps,
+        loop=True
+    )
     detector = YoloDetector(
         model_path=args.model,
         conf_threshold=vision_settings.conf_threshold,
@@ -62,9 +63,7 @@ def main() -> None:
     speed_estimator = SpeedEstimator()
 
     try:
-        for frame in simulator.stream():
-            current_time = time.time()
-            
+        for current_time, frame in simulator.stream():
             # 1. Detection and Tracking
             annotated_frame, class_counts, centroids = detector.process_frame(frame)
             
@@ -83,7 +82,7 @@ def main() -> None:
             )
 
             # 4. Publish to Bus
-            bus.publish_vision_event(event)
+            bus.publish(redis_settings.stream_name, event)
             
             # 5. Visualization (optional)
             if not args.headless:
@@ -100,6 +99,20 @@ def main() -> None:
                     (0, 255, 255),
                     2,
                 )
+                
+                # Draw lane counts
+                y_offset = 70
+                for lane_name, count in lane_counts.items():
+                    cv2.putText(
+                        annotated_frame,
+                        f"{lane_name}: {count} vehicles",
+                        (10, y_offset),
+                        cv2.FONT_HERSHEY_SIMPLEX,
+                        0.8,
+                        (0, 255, 0),
+                        2,
+                    )
+                    y_offset += 30
                 
                 cv2.imshow(f"Feed {args.camera_id}", annotated_frame)
                 if cv2.waitKey(1) & 0xFF == ord("q"):

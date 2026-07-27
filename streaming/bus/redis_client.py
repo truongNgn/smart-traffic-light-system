@@ -31,9 +31,9 @@ class RedisStreamBus(MessageBus):
         The event is dumped to JSON and stored under the 'data' key.
         """
         # We assume event is a Pydantic model
-        data_json = event.model_dump_json()
-        payload = {"data": data_json}
-        
+        data_json: str = event.model_dump_json()
+        payload: dict[str, str] = {"data": data_json}
+
         try:
             msg_id = self._redis.xadd(stream_name, payload)
             logger.debug("Published event", stream_name=stream_name, msg_id=msg_id)

@@ -47,9 +47,9 @@ class RedisConsumer:
                 for stream_name, messages in streams_typed:
                     for message_id, data in messages:
                         last_id = message_id
-                        if "event" in data:
+                        if "data" in data:
                             try:
-                                payload = json.loads(data["event"])
+                                payload = json.loads(data["data"])
                                 event = VehicleCountEvent(**payload)
                                 yield event
                             except Exception as e:
