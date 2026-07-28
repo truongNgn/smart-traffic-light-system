@@ -20,6 +20,8 @@ vehicle_counts: Dict[str, deque] = {
 }
 
 latest_phase_state: Dict[str, Any] = {
+    "active_phase": None,
+    "active_directions": [],
     "active_direction": None,
     "is_yellow": False,
     "is_all_red": True,
@@ -36,10 +38,11 @@ def on_message(ws, message):
 
         if topic == "vehicle_counts":
             ts = payload.get("timestamp_s", time.time())
-            counts = payload.get("counts", {})
+            counts = payload.get("counts") or payload.get("lane_counts", {})
             for direction, count in counts.items():
-                if direction in vehicle_counts:
-                    vehicle_counts[direction].append({"time": ts, "count": count})
+                normalized = _normalize_direction(direction)
+                if normalized in vehicle_counts:
+                    vehicle_counts[normalized].append({"time": ts, "count": count})
                     
         elif topic == "phase_states":
             global latest_phase_state
@@ -64,6 +67,20 @@ def on_close(ws, close_status_code, close_msg):
 
 def on_open(ws):
     logger.info("WebSocket connected to telemetry stream.")
+
+def _normalize_direction(value: str) -> str:
+    value = value.upper()
+    if value in vehicle_counts:
+        return value
+    if value.startswith("N"):
+        return "NORTH"
+    if value.startswith("S"):
+        return "SOUTH"
+    if value.startswith("E"):
+        return "EAST"
+    if value.startswith("W"):
+        return "WEST"
+    return value
 
 def run_websocket():
     # Run forever with automatic reconnect

@@ -6,7 +6,8 @@ from typing import Optional, Callable, Awaitable
 
 import structlog
 
-from common.constants import Direction, YELLOW_DURATION_S, ALL_RED_DURATION_S
+from common.constants import PHASE_DIRECTIONS, YELLOW_DURATION_S, ALL_RED_DURATION_S
+from common.constants import PhaseAction as PhaseActionEnum
 from common.schemas.control import PhaseState
 
 logger = structlog.get_logger("phase_fsm")
@@ -14,14 +15,21 @@ logger = structlog.get_logger("phase_fsm")
 
 class PhaseFSM:
     def __init__(self, publish_cb: Callable[[PhaseState], Awaitable[None]]):
-        self.current_direction: Optional[Direction] = None
+        self.current_phase: Optional[PhaseActionEnum] = None
         self.state: str = "ALL_RED"
         self.publish_cb = publish_cb
         self._lock = asyncio.Lock()
 
     def get_state(self) -> PhaseState:
+        active_directions = (
+            list(PHASE_DIRECTIONS[self.current_phase])
+            if self.current_phase is not None and self.state != "ALL_RED"
+            else []
+        )
         return PhaseState(
-            active_direction=self.current_direction,
+            active_phase=self.current_phase if self.state != "ALL_RED" else None,
+            active_directions=active_directions,
+            active_direction=active_directions[0] if active_directions else None,
             is_yellow=(self.state == "YELLOW"),
             is_all_red=(self.state == "ALL_RED"),
             timestamp_s=time.time()
@@ -43,30 +51,30 @@ class PhaseFSM:
                 await asyncio.sleep(YELLOW_DURATION_S)
                 
             self.state = "ALL_RED"
-            self.current_direction = None
+            self.current_phase = None
             await self._publish()
 
-    async def transition_to(self, target: Direction):
-        """Safely transition to the target direction."""
+    async def transition_to(self, target: PhaseActionEnum):
+        """Safely transition to the target phase."""
         async with self._lock:
-            if self.current_direction == target and self.state == "GREEN":
+            if self.current_phase == target and self.state == "GREEN":
                 # No-op fast path
                 return
 
-            logger.info("FSM Transitioning", current=self.current_direction, target=target)
+            logger.info("FSM Transitioning", current=self.current_phase, target=target)
 
-            if self.state == "GREEN" and self.current_direction is not None:
+            if self.state == "GREEN" and self.current_phase is not None:
                 self.state = "YELLOW"
                 await self._publish()
                 await asyncio.sleep(YELLOW_DURATION_S)
 
             if self.state != "ALL_RED":
                 self.state = "ALL_RED"
-                self.current_direction = None
+                self.current_phase = None
                 await self._publish()
                 await asyncio.sleep(ALL_RED_DURATION_S)
 
             self.state = "GREEN"
-            self.current_direction = target
+            self.current_phase = target
             await self._publish()
             logger.info("FSM Reached Target", target=target)

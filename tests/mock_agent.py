@@ -1,21 +1,21 @@
 import asyncio
 import time
-from common.constants import Direction
+from common.constants import PhaseAction as PhaseActionEnum
 from common.schemas.control import PhaseAction
 import redis.asyncio as redis
 
 async def run_mock():
     r = redis.Redis(host="localhost", port=6379, decode_responses=True)
     
-    # Send East Green
-    action = PhaseAction(target_direction=Direction.EAST, timestamp_s=time.time())
+    # Send East/West Green
+    action = PhaseAction(target_phase=PhaseActionEnum.EAST_WEST, timestamp_s=time.time())
     await r.xadd("agent_commands", {"data": action.model_dump_json()})
     print(f"Sent: {action}")
     
     await asyncio.sleep(5)
     
-    # Send North Green (Should trigger Yellow -> All Red -> Green)
-    action = PhaseAction(target_direction=Direction.NORTH, timestamp_s=time.time())
+    # Send North/South Green (Should trigger Yellow -> All Red -> Green)
+    action = PhaseAction(target_phase=PhaseActionEnum.NORTH_SOUTH, timestamp_s=time.time())
     await r.xadd("agent_commands", {"data": action.model_dump_json()})
     print(f"Sent: {action}")
 

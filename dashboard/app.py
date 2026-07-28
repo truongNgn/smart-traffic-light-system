@@ -9,6 +9,7 @@ st.set_page_config(page_title="AI Traffic Controller", page_icon="🚦", layout=
 
 # Map Enum indices to string names since Pydantic outputs integers for our Enum
 DIR_MAP = {0: "EAST", 1: "NORTH", 2: "WEST", 3: "SOUTH", None: None}
+PHASE_MAP = {0: ["EAST", "WEST"], 1: ["NORTH", "SOUTH"], None: []}
 
 # Initialize websocket thread (runs only once)
 state.start_background_thread()
@@ -20,8 +21,14 @@ st.title("🚦 AI Traffic Controller - Live Telemetry")
 # ================================
 st.header("Intersection Status")
 phase = state.latest_phase_state
-active_dir_int = phase.get("active_direction")
-active_dir = DIR_MAP.get(active_dir_int)
+active_phase = phase.get("active_phase")
+active_dirs = [DIR_MAP.get(d, d) for d in phase.get("active_directions", [])]
+if not active_dirs:
+    active_dirs = PHASE_MAP.get(active_phase, [])
+if not active_dirs:
+    active_dir_int = phase.get("active_direction")
+    active_dir = DIR_MAP.get(active_dir_int)
+    active_dirs = [active_dir] if active_dir else []
 
 cols = st.columns(4)
 directions = ["NORTH", "SOUTH", "EAST", "WEST"]
@@ -34,7 +41,7 @@ for col, d in zip(cols, directions):
         if phase.get("is_all_red"):
             color_hex = "#FF3B30" # Red
             label = "RED (SAFETY BUFFER)"
-        elif active_dir == d:
+        elif d in active_dirs:
             if phase.get("is_yellow"):
                 color_hex = "#FFCC00" # Yellow
                 label = "YELLOW"
@@ -96,6 +103,22 @@ if df_list:
     st.plotly_chart(fig, use_container_width=True)
 else:
     st.info("Waiting for vehicle count data from vision producer...")
+
+st.divider()
+st.header("AI Reasoning")
+if state.latest_reasoning:
+    latest = state.latest_reasoning[0]
+    chosen = latest.get("chosen_action")
+    chosen_name = {0: "EAST_WEST", 1: "NORTH_SOUTH"}.get(chosen, chosen)
+    st.metric("Chosen Phase", chosen_name)
+    q_values = latest.get("q_values", {})
+    if q_values:
+        q_df = pd.DataFrame(
+            [{"Phase": phase_name, "Q-value": value} for phase_name, value in q_values.items()]
+        )
+        st.bar_chart(q_df, x="Phase", y="Q-value")
+else:
+    st.info("Waiting for reasoning logs from the DQN agent...")
 
 # ================================
 # Auto-Refresh Loop

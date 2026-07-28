@@ -8,6 +8,7 @@ from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from common.constants import DEFAULT_SEED, DEFAULT_STEP_LENGTH_S
+from common.constants import GREEN_DURATION_S
 
 
 class SimulationSettings(BaseSettings):
@@ -90,7 +91,25 @@ class ApiSettings(BaseSettings):
     cors_origins: list[str] = Field(default=["*"])
 
 
+class AgentRuntimeSettings(BaseSettings):
+    """Settings for the trained DQN runtime that publishes live decisions."""
+
+    model_config = SettingsConfigDict(env_prefix="AGENT_", env_file=".env", extra="ignore")
+
+    checkpoint_path: str = Field(default="checkpoints/dqn_ew_repair_best.pt")
+    episode_duration_s: float = Field(default=300.0)
+    seed: int = Field(default=DEFAULT_SEED)
+    backend: Literal["traci", "libsumo"] = Field(default="traci")
+    use_gui: bool = Field(default=False)
+    decision_interval_s: float = Field(
+        default=GREEN_DURATION_S,
+        ge=0.0,
+        description="Wall-clock delay between live control decisions. Use 0 for fast smoke tests.",
+    )
+
+
 settings = SimulationSettings()
 vision_settings = VisionSettings()
 redis_settings = RedisSettings()
 api_settings = ApiSettings()
+agent_runtime_settings = AgentRuntimeSettings()

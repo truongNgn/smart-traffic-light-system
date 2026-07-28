@@ -60,6 +60,12 @@ PHASE_DIRECTIONS: dict[PhaseAction, tuple[Direction, Direction]] = {
     PhaseAction.NORTH_SOUTH: (Direction.NORTH, Direction.SOUTH),
 }
 
+DIRECTION_PHASE: dict[Direction, PhaseAction] = {
+    direction: phase
+    for phase, directions in PHASE_DIRECTIONS.items()
+    for direction in directions
+}
+
 
 NUM_ACTIONS: int = len(PhaseAction)
 
