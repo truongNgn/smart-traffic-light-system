@@ -36,26 +36,26 @@
 
 ```
                     ┌──────────────────────────────────────────────────────┐
-                    │                   common/ (contracts)                  │
-                    │   Pydantic schemas · config · structured logging       │
+                    │                   common/ (contracts)                │
+                    │   Pydantic schemas · config · structured logging     │
                     └──────────────────────────────────────────────────────┘
    ENGINEER A                                              ENGINEER B
- ┌───────────────┐   count/speed/pos    ┌──────────────┐   80-cell state   ┌──────────────┐
- │ 4× Video Feed │ ───────────────────► │  Message Bus │ ────────────────► │  SUMO + TraCI │
- │  Simulator    │                      │ Redis Stream │                    │  Gym Env      │
- └──────┬────────┘                      │  / Kafka     │ ◄──── action ───── └──────┬───────┘
+ ┌───────────────┐   count/speed/pos    ┌──────────────┐   80-cell state     ┌──────────────┐
+ │ 4× Video Feed │ ───────────────────► │  Message Bus │ ────────────────►   │  SUMO + TraCI│
+ │  Simulator    │                      │ Redis Stream │                     │  Gym Env     │
+ └──────┬────────┘                      │  / Kafka     │ ◄──── action ─────  └──────┬───────┘
         │ frames                        └──────┬───────┘   (phase index)            │
  ┌──────▼────────┐                             │                             ┌──────▼───────┐
- │ YOLOv8/v11 +  │                      ┌──────▼───────┐                     │ DQN Agent     │
- │ ByteTrack     │                      │  FastAPI +   │                     │ (PyTorch)     │
- │ Centroid Cnt  │                      │  WebSockets  │◄───reasoning logs───│ + Reward Eng  │
+ │ YOLOv8/v11 +  │                      ┌──────▼───────┐                     │ DQN Agent    │
+ │ ByteTrack     │                      │  FastAPI +   │                     │ (PyTorch)    │
+ │ Centroid Cnt  │                      │  WebSockets  │◄───reasoning logs───│ + Reward Eng │
  └───────────────┘                      └──────┬───────┘                     └──────┬───────┘
                                                │                                    │
-                                        ┌──────▼───────┐                     ┌──────▼───────┐
-                                        │  Dashboard   │                     │Control Service│
-                                        │ (4 feeds +   │                     │ Yellow/All-Red│
-                                        │  SUMO view)  │                     │ safety buffers│
-                                        └──────────────┘                     └──────────────┘
+                                        ┌──────▼────────┐                    ┌──────▼────────┐
+                                        │  Dashboard    │                    │Control Service│
+                                        │ (4 feeds +    │                    │ Yellow/All-Red│
+                                        │  SUMO view)   │                    │ safety buffers│
+                                        └───────────────┘                    └───────────────┘
 ```
 
 **Data contracts (the two seams that must never drift):**

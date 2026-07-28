@@ -1,0 +1,26 @@
+version: '3.8'
+
+services:
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  vision:
+    build:
+      context: .
+      dockerfile: docker/vision/Dockerfile
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - VISION_YOLO_MODEL_PATH=yolov8n.pt
+    depends_on:
+      redis:
+        condition: service_healthy
+    volumes:
+      - .:/app

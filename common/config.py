@@ -37,4 +37,60 @@ class SimulationSettings(BaseSettings):
     )
 
 
+class VisionSettings(BaseSettings):
+    """Settings for the YOLO Vision pipeline (Engineer A)."""
+
+    model_config = SettingsConfigDict(env_prefix="VISION_", env_file=".env", extra="ignore")
+
+    yolo_model_path: str = Field(
+        default="yolov8n.pt",
+        description="Path or name of the YOLOv8 model.",
+    )
+    camera_fps: float = Field(
+        default=30.0,
+        description="Target FPS for the video stream simulator.",
+    )
+    conf_threshold: float = Field(
+        default=0.25,
+        description="Confidence threshold for YOLO detection.",
+    )
+    iou_threshold: float = Field(
+        default=0.45,
+        description="NMS IoU threshold for YOLO detection.",
+    )
+    # A generic mapping of lane/ROI name to polygon points [(x,y), ...]
+    # For now, we will use hardcoded defaults that cover standard frames,
+    # or rely on speed calculation across the whole frame if ROIs aren't strictly defined.
+    rois: dict[str, list[tuple[int, int]]] = Field(
+        default={
+            "Lane-Center": [(250, 0), (390, 0), (390, 480), (250, 480)],
+        },
+        description="Dictionary mapping lane ID to a list of (x,y) polygon points.",
+    )
+
+
+
+class RedisSettings(BaseSettings):
+    """Settings for the Redis Message Bus."""
+
+    model_config = SettingsConfigDict(env_prefix="REDIS_", env_file=".env", extra="ignore")
+
+    host: str = Field(default="localhost")
+    port: int = Field(default=6379)
+    stream_name: str = Field(default="vehicle_counts")
+
+
+class ApiSettings(BaseSettings):
+    """Settings for the FastAPI application (Engineer A)."""
+
+    model_config = SettingsConfigDict(env_prefix="API_", env_file=".env", extra="ignore")
+
+    host: str = Field(default="0.0.0.0")
+    port: int = Field(default=8000)
+    cors_origins: list[str] = Field(default=["*"])
+
+
 settings = SimulationSettings()
+vision_settings = VisionSettings()
+redis_settings = RedisSettings()
+api_settings = ApiSettings()

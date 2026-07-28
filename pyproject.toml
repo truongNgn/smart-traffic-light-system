@@ -13,6 +13,19 @@ dependencies = [
     "numpy>=1.26",
     "torch>=2.2",
     "tqdm>=4.66",
+    "torch==2.5.1+cu121",
+    "torchvision==0.20.1+cu121",
+    "ultralytics>=8.1",
+    "opencv-python>=4.9",
+    "redis>=5.0",
+    "lapx>=0.5",
+    "tensorrt>=11.1.0",
+    "fastapi>=0.111.0",
+    "uvicorn>=0.30.0",
+    "streamlit>=1.30.0",
+    "websocket-client>=1.7.0",
+    "pandas>=2.1.0",
+    "plotly>=5.18.0",
 ]
 
 [project.optional-dependencies]
@@ -43,3 +56,16 @@ warn_unused_ignores = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+[tool.setuptools]
+packages = ["common", "rl", "simulation", "vision", "streaming"]
+
+[[tool.uv.index]]
+name = "pytorch"
+url = "https://download.pytorch.org/whl/cu121"
+explicit = true
+
+[tool.uv.sources]
+torch = { index = "pytorch" }
+torchvision = { index = "pytorch" }
+torchaudio = { index = "pytorch" }

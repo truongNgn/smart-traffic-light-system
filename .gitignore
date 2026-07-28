@@ -7,6 +7,7 @@ venv/
 .mypy_cache/
 .ruff_cache/
 .pytest_cache/
+uv.lock
 
 # Env / secrets
 .env
@@ -22,11 +23,17 @@ simulation/net/intersection_test.rou.xml
 *.pt
 *.pth
 *.ckpt
+*.engine
+*.onnx
 mlruns/
 wandb/
 checkpoints/
-benchmark/results/*.json
 
+# Video / Media
+test.mp4
+smoke_test_output.mp4
+
+benchmark/results/*.json
 # OS / editors
 .DS_Store
 .vscode/
