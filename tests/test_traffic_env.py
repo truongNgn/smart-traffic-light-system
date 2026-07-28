@@ -65,13 +65,13 @@ class TestSumoTrafficEnv:
         env = SumoTrafficEnv(sumocfg_path=TEST_SUMOCFG, seed=1)
         try:
             env.reset()
-            initial_direction_action = int(env._current_direction.value)
+            initial_phase_action = int(env._current_phase.value)
             step_before = env._sim.traci.simulation.getTime()
-            obs, reward, terminated, truncated, info = env.step(initial_direction_action)
+            obs, reward, terminated, truncated, info = env.step(initial_phase_action)
             step_after = env._sim.traci.simulation.getTime()
-            # Staying on the same direction should advance exactly one
-            # control step (step_length_s), not yellow_steps + all_red_steps + 1.
-            assert step_after - step_before == env.step_length_s
+            # Staying on the same direction should hold the selected green
+            # for the configured control interval, without yellow/all-red.
+            assert step_after - step_before == env._green_steps * env.step_length_s
             assert obs.shape == (GRID_CELLS_TOTAL,)
         finally:
             env.close()
@@ -80,7 +80,7 @@ class TestSumoTrafficEnv:
         env = SumoTrafficEnv(sumocfg_path=TEST_SUMOCFG, seed=1)
         try:
             env.reset()
-            current_action = int(env._current_direction.value)
+            current_action = int(env._current_phase.value)
             other_action = (current_action + 1) % NUM_ACTIONS
 
             step_before = env._sim.traci.simulation.getTime()
@@ -88,10 +88,51 @@ class TestSumoTrafficEnv:
             step_after = env._sim.traci.simulation.getTime()
 
             expected_steps = (
-                env._yellow_steps + env._all_red_steps + 1
+                env._yellow_steps + env._all_red_steps + env._green_steps
             ) * env.step_length_s
             assert step_after - step_before == expected_steps
-            assert int(env._current_direction.value) == other_action
+            assert int(env._current_phase.value) == other_action
+        finally:
+            env.close()
+
+    def test_hard_red_time_guard_forces_starving_phase(self) -> None:
+        env = SumoTrafficEnv(
+            sumocfg_path=TEST_SUMOCFG,
+            seed=1,
+            max_red_time_s=None,
+            hard_red_time_s=5.0,
+        )
+        try:
+            env.reset()
+            initial_phase_action = int(env._current_phase.value)
+            env.step(initial_phase_action)
+
+            obs, reward, terminated, truncated, info = env.step(initial_phase_action)
+
+            assert info["action_forced_by_guard"] is True
+            assert int(env._current_phase.value) != initial_phase_action
+            assert info["phase"] != info["requested_phase"]
+            assert info["guard_reason"] == "hard_red_time"
+        finally:
+            env.close()
+
+    def test_soft_red_time_guard_waits_for_queue_or_waiting_pressure(self) -> None:
+        env = SumoTrafficEnv(
+            sumocfg_path=TEST_SUMOCFG,
+            seed=1,
+            soft_red_time_s=5.0,
+            hard_red_time_s=999.0,
+            starving_queue_threshold=999,
+            starving_wait_time_s=999.0,
+        )
+        try:
+            env.reset()
+            initial_phase_action = int(env._current_phase.value)
+            env.step(initial_phase_action)
+            obs, reward, terminated, truncated, info = env.step(initial_phase_action)
+
+            assert info["action_forced_by_guard"] is False
+            assert int(env._current_phase.value) == initial_phase_action
         finally:
             env.close()
 
@@ -107,7 +148,7 @@ class TestSumoTrafficEnv:
         env = SumoTrafficEnv(sumocfg_path=TEST_SUMOCFG, seed=1)
         try:
             env.reset()
-            env.step(int(env._current_direction.value))
+            env.step(int(env._current_phase.value))
             step_before_second_reset = env._sim.traci.simulation.getTime()
             assert step_before_second_reset > 0
 
@@ -130,7 +171,7 @@ class TestSumoTrafficEnvLibsumoBackend:
         try:
             obs, _ = env.reset()
             assert obs.shape == (GRID_CELLS_TOTAL,)
-            other_action = (int(env._current_direction.value) + 1) % NUM_ACTIONS
+            other_action = (int(env._current_phase.value) + 1) % NUM_ACTIONS
             obs, reward, terminated, truncated, info = env.step(other_action)
             assert obs.shape == (GRID_CELLS_TOTAL,)
         finally:
@@ -140,14 +181,16 @@ class TestSumoTrafficEnvLibsumoBackend:
         env = SumoTrafficEnv(sumocfg_path=TEST_SUMOCFG, seed=1, backend="libsumo")
         try:
             env.reset()
-            current_action = int(env._current_direction.value)
+            current_action = int(env._current_phase.value)
             other_action = (current_action + 1) % NUM_ACTIONS
 
             step_before = env._sim.traci.simulation.getTime()
             env.step(other_action)
             step_after = env._sim.traci.simulation.getTime()
 
-            expected_steps = (env._yellow_steps + env._all_red_steps + 1) * env.step_length_s
+            expected_steps = (
+                env._yellow_steps + env._all_red_steps + env._green_steps
+            ) * env.step_length_s
             assert step_after - step_before == expected_steps
         finally:
             env.close()

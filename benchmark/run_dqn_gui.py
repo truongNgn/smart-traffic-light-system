@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import argparse
 
-from common.constants import Direction
+from common.constants import PhaseAction
 from common.logging import configure_logging
 from benchmark.policies import DQNPolicy
 from rl.agent.dqn_agent import DQNAgent
@@ -51,9 +51,9 @@ def run_gui(
             obs, _reward, terminated, truncated, info = env.step(action)
             sim_time_s = float(info["sim_time_s"])
             if sim_time_s >= next_log_at:
-                direction = Direction(action).name
+                phase = PhaseAction(action).name
                 print(
-                    f"t={sim_time_s:6.1f}s  action={direction:<5}  "
+                    f"t={sim_time_s:6.1f}s  action={phase:<11}  "
                     f"waiting={info['total_waiting_time_s']:8.1f}s  "
                     f"arrived={info['arrived_vehicles']}"
                 )

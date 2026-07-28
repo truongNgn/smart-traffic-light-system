@@ -16,7 +16,7 @@ from benchmark.compare import compare
 from benchmark.metrics import EpisodeMetrics
 from benchmark.policies import DQNPolicy, FixedTimePolicy
 from benchmark.run_episode import run_episode
-from common.constants import Direction
+from common.constants import PhaseAction
 from rl.agent.dqn_agent import DQNAgent
 from rl.env.traffic_env import SumoTrafficEnv
 from rl.train.checkpoint import save_checkpoint
@@ -26,31 +26,31 @@ from tests.conftest import SUMOCFG, requires_network, requires_sumo
 class TestFixedTimePolicyUnit:
     def test_first_direction_at_time_zero(self) -> None:
         policy = FixedTimePolicy(green_duration_s=20.0)
-        assert policy.select_action(obs=None, sim_time_s=0.0) == policy.direction_order[0].value
+        assert policy.select_action(obs=None, sim_time_s=0.0) == policy.phase_order[0].value
 
     def test_advances_to_second_direction_after_green_duration(self) -> None:
         policy = FixedTimePolicy(green_duration_s=20.0)
-        assert policy.select_action(obs=None, sim_time_s=20.0) == policy.direction_order[1].value
-        assert policy.select_action(obs=None, sim_time_s=39.9) == policy.direction_order[1].value
+        assert policy.select_action(obs=None, sim_time_s=20.0) == policy.phase_order[1].value
+        assert policy.select_action(obs=None, sim_time_s=39.9) == policy.phase_order[1].value
 
     def test_cycles_back_to_first_direction_after_full_cycle(self) -> None:
         policy = FixedTimePolicy(green_duration_s=20.0)
-        cycle_length = 20.0 * len(policy.direction_order)
-        assert policy.select_action(obs=None, sim_time_s=cycle_length) == policy.direction_order[0].value
+        cycle_length = 20.0 * len(policy.phase_order)
+        assert policy.select_action(obs=None, sim_time_s=cycle_length) == policy.phase_order[0].value
         assert (
             policy.select_action(obs=None, sim_time_s=cycle_length * 3 + 5)
-            == policy.direction_order[0].value
+            == policy.phase_order[0].value
         )
 
-    def test_default_order_covers_all_four_directions(self) -> None:
+    def test_default_order_covers_both_axis_phases(self) -> None:
         policy = FixedTimePolicy(green_duration_s=10.0)
-        assert set(policy.direction_order) == set(Direction)
+        assert set(policy.phase_order) == set(PhaseAction)
 
-    def test_custom_direction_order_is_respected(self) -> None:
-        custom_order = (Direction.SOUTH, Direction.EAST, Direction.WEST, Direction.NORTH)
-        policy = FixedTimePolicy(green_duration_s=15.0, direction_order=custom_order)
-        assert policy.select_action(obs=None, sim_time_s=0.0) == Direction.SOUTH.value
-        assert policy.select_action(obs=None, sim_time_s=15.0) == Direction.EAST.value
+    def test_custom_phase_order_is_respected(self) -> None:
+        custom_order = (PhaseAction.NORTH_SOUTH, PhaseAction.EAST_WEST)
+        policy = FixedTimePolicy(green_duration_s=15.0, phase_order=custom_order)
+        assert policy.select_action(obs=None, sim_time_s=0.0) == PhaseAction.NORTH_SOUTH.value
+        assert policy.select_action(obs=None, sim_time_s=15.0) == PhaseAction.EAST_WEST.value
 
 
 class TestEpisodeMetrics:

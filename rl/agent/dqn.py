@@ -1,7 +1,6 @@
-"""Deep Q-Network architecture from Sahal et al. (2023): an 80-neuron input
-layer (one per grid cell, see docs/state_encoding.md), 5 hidden layers of
-400 neurons each with ReLU, and a 4-neuron output layer - one Q-value per
-common.constants.Direction.
+"""Deep Q-Network architecture: an 80-neuron input layer (one per grid cell,
+see docs/state_encoding.md), 5 hidden layers of 400 neurons each with ReLU,
+and one Q-value per common.constants.PhaseAction.
 """
 
 from __future__ import annotations

@@ -13,7 +13,7 @@ on timing constants.
 
 from __future__ import annotations
 
-from common.constants import Direction
+from common.constants import PHASE_DIRECTIONS, Direction, PhaseAction
 from simulation.state.grid_encoder import APPROACH_EDGE_BY_DIRECTION
 
 
@@ -53,21 +53,22 @@ class TlsController:
                     f"{tls_id!r} - check APPROACH_EDGE_BY_DIRECTION against the network."
                 )
 
-    def green_state(self, direction: Direction) -> str:
-        """Every signal for `direction` is 'G'; everything else is red."""
-        return self._state_with(direction, "G")
+    def green_state(self, phase: PhaseAction) -> str:
+        """Every signal for both opposite approaches in `phase` is green."""
+        return self._state_with_phase(phase, "G")
 
-    def yellow_state(self, direction: Direction) -> str:
-        """Every signal for `direction` is 'y'; everything else is red -
-        used for the mandatory yellow buffer when `direction` is losing the
+    def yellow_state(self, phase: PhaseAction) -> str:
+        """Every signal for the losing `phase` is yellow; everything else is red -
+        used for the mandatory yellow buffer when `phase` is losing the
         green (common.constants.YELLOW_DURATION_S)."""
-        return self._state_with(direction, "y")
+        return self._state_with_phase(phase, "y")
 
     def all_red_state(self) -> str:
         return "r" * self._num_signals
 
-    def _state_with(self, direction: Direction, char: str) -> str:
+    def _state_with_phase(self, phase: PhaseAction, char: str) -> str:
         chars = ["r"] * self._num_signals
-        for i in self._indices_by_direction[direction]:
-            chars[i] = char
+        for direction in PHASE_DIRECTIONS[phase]:
+            for i in self._indices_by_direction[direction]:
+                chars[i] = char
         return "".join(chars)

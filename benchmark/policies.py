@@ -19,7 +19,7 @@ from typing import Protocol
 
 import numpy as np
 
-from common.constants import Direction
+from common.constants import PhaseAction
 from rl.agent.dqn_agent import DQNAgent
 
 
@@ -32,7 +32,7 @@ class Policy(Protocol):
 
 
 class FixedTimePolicy:
-    """Cycles through directions in a fixed order, each held green for
+    """Cycles through valid two-way phases in a fixed order, each held green for
     `green_duration_s` before moving to the next - the standard fixed-time
     baseline referenced in Sahal et al. (2023) as the point of comparison
     for the DRL approach.
@@ -47,22 +47,20 @@ class FixedTimePolicy:
     def __init__(
         self,
         green_duration_s: float = 20.0,
-        direction_order: tuple[Direction, ...] = (
-            Direction.EAST,
-            Direction.NORTH,
-            Direction.WEST,
-            Direction.SOUTH,
+        phase_order: tuple[PhaseAction, ...] = (
+            PhaseAction.EAST_WEST,
+            PhaseAction.NORTH_SOUTH,
         ),
     ) -> None:
         self.green_duration_s = green_duration_s
-        self.direction_order = direction_order
-        self._cycle_length_s = green_duration_s * len(direction_order)
+        self.phase_order = phase_order
+        self._cycle_length_s = green_duration_s * len(phase_order)
 
     def select_action(self, obs: np.ndarray, sim_time_s: float) -> int:  # noqa: ARG002
         position_in_cycle = sim_time_s % self._cycle_length_s
         phase_index = int(position_in_cycle // self.green_duration_s)
-        phase_index = min(phase_index, len(self.direction_order) - 1)
-        return self.direction_order[phase_index].value
+        phase_index = min(phase_index, len(self.phase_order) - 1)
+        return self.phase_order[phase_index].value
 
     def reset(self) -> None:
         pass  # stateless - time-based, nothing to reset between episodes
