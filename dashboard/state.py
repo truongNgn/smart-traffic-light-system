@@ -1,5 +1,6 @@
 import threading
 import json
+import os
 import time
 import websocket
 from collections import deque
@@ -7,6 +8,7 @@ import structlog
 from typing import Dict, Any, List
 
 logger = structlog.get_logger("dashboard_state")
+WS_URL = os.getenv("DASHBOARD_WS_URL", "ws://localhost:8000/ws/telemetry")
 
 # Global State Stores
 MAX_HISTORY = 60  # Store last 60 events per lane
@@ -86,7 +88,7 @@ def run_websocket():
     # Run forever with automatic reconnect
     while True:
         ws = websocket.WebSocketApp(
-            "ws://localhost:8000/ws/telemetry",
+            WS_URL,
             on_open=on_open,
             on_message=on_message,
             on_error=on_error,

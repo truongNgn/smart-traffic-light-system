@@ -1,26 +1,114 @@
-version: '3.8'
-
 services:
   redis:
     image: redis:7-alpine
     ports:
-      - "6379:6379"
+      - "${REDIS_HOST_PORT:-6379}:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
       timeout: 3s
       retries: 5
+    restart: unless-stopped
+
+  api:
+    build:
+      context: .
+      dockerfile: docker/app/Dockerfile
+    command: ["python", "-m", "uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "8000"]
+    environment:
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      API_HOST: 0.0.0.0
+      API_PORT: "8000"
+    ports:
+      - "${API_HOST_PORT:-8000}:8000"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  control:
+    build:
+      context: .
+      dockerfile: docker/app/Dockerfile
+    command: ["python", "-m", "control.service"]
+    environment:
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  dashboard:
+    build:
+      context: .
+      dockerfile: docker/app/Dockerfile
+    command:
+      [
+        "streamlit",
+        "run",
+        "dashboard/app.py",
+        "--server.address=0.0.0.0",
+        "--server.port=8501",
+        "--server.headless=true",
+      ]
+    environment:
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      DASHBOARD_WS_URL: ws://api:8000/ws/telemetry
+    ports:
+      - "${DASHBOARD_HOST_PORT:-8502}:8501"
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+
+  agent:
+    build:
+      context: .
+      dockerfile: docker/app/Dockerfile
+    command:
+      [
+        "sh",
+        "-c",
+        "sleep 5 && python -m rl.control_runner --checkpoint checkpoints/dqn_ew_repair_best.pt --sumocfg simulation/net/intersection.sumocfg --episode-duration 300 --backend traci",
+      ]
+    environment:
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      AGENT_CHECKPOINT_PATH: checkpoints/dqn_ew_repair_best.pt
+      AGENT_BACKEND: traci
+      AGENT_EPISODE_DURATION_S: "300"
+      AGENT_DECISION_INTERVAL_S: "10"
+      SIM_SUMOCFG_PATH: simulation/net/intersection.sumocfg
+      SIM_BACKEND: traci
+      SUMO_HOME: /usr/share/sumo
+    volumes:
+      - ./checkpoints:/app/checkpoints:ro
+    depends_on:
+      redis:
+        condition: service_healthy
+      control:
+        condition: service_started
+      api:
+        condition: service_healthy
+    restart: "no"
 
   vision:
     build:
       context: .
       dockerfile: docker/vision/Dockerfile
     environment:
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
-      - VISION_YOLO_MODEL_PATH=yolov8n.pt
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      VISION_YOLO_MODEL_PATH: yolov8n.pt
     depends_on:
       redis:
         condition: service_healthy
-    volumes:
-      - .:/app
+    restart: "no"

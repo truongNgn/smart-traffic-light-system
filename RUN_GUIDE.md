@@ -13,11 +13,9 @@ control service -----------------> Redis phase_states -> API -> dashboard
 
 ## Prerequisites
 
-- Python 3.11+
-- `uv`
 - Docker Desktop
-- SUMO installed locally and available on `PATH`, or `SUMO_HOME` configured
 - A trained checkpoint in `checkpoints/`
+- Python 3.11+, `uv`, and local SUMO only if you want to run services outside Docker
 
 Recommended checkpoint:
 
@@ -25,27 +23,94 @@ Recommended checkpoint:
 checkpoints/dqn_ew_repair_best.pt
 ```
 
+## 1. Start the Full Docker Stack
+
+From the repository root:
+
+```bash
+docker compose up --build
+```
+
+This builds and starts:
+
+- `redis`
+- `api`
+- `control`
+- `dashboard`
+- `agent`
+- `vision`
+
+Open the dashboard:
+
+```text
+http://localhost:8502
+```
+
+Open the API health endpoint:
+
+```text
+http://localhost:8000/health
+```
+
+Stop everything:
+
+```bash
+docker compose down
+```
+
+Check service status:
+
+```bash
+docker compose ps
+```
+
+Docker publishes the dashboard on host port `8502` while Streamlit still runs on container port `8501`. This avoids collisions with a local Streamlit dev session. Override host ports when needed:
+
+```bash
+REDIS_HOST_PORT=6380 API_HOST_PORT=8001 DASHBOARD_HOST_PORT=8503 docker compose up --build
+```
+
+## 2. Docker Debug Commands
+
+Read stream lengths:
+
+```bash
+docker exec smart-traffic-system-redis-1 redis-cli XLEN vehicle_counts
+docker exec smart-traffic-system-redis-1 redis-cli XLEN agent_commands
+docker exec smart-traffic-system-redis-1 redis-cli XLEN phase_states
+docker exec smart-traffic-system-redis-1 redis-cli XLEN reasoning_logs
+```
+
+Follow logs:
+
+```bash
+docker compose logs -f api control dashboard agent vision
+```
+
+Rebuild one service:
+
+```bash
+docker compose build api
+docker compose up -d api
+```
+
+## 3. Local Development Mode
+
+Use this mode when you want to run services manually with `uv`.
+
 Install Python dependencies:
 
 ```bash
 uv sync
 ```
 
-## 1. Start Redis
-
-Redis is the message bus for all services.
+Start Redis:
 
 ```bash
 docker compose up -d redis
 ```
 
-Verify it is healthy:
-
-```bash
-docker compose ps
-```
-
-## 2. Start the API Gateway
+### Terminal 1: API Gateway
 
 Open a new terminal:
 
@@ -65,7 +130,7 @@ Health check:
 curl http://localhost:8000/health
 ```
 
-## 3. Start the Control Service
+### Terminal 2: Control Service
 
 Open a new terminal:
 
@@ -87,7 +152,7 @@ phase_states
 
 The service enforces yellow/all-red safety transitions and fails safe to all-red if commands stop arriving.
 
-## 4. Start the Dashboard
+### Terminal 3: Dashboard
 
 Open a new terminal:
 
@@ -108,7 +173,7 @@ The dashboard displays:
 - active green/yellow/all-red status
 - DQN reasoning logs and Q-values
 
-## 5. Run the Trained DQN Agent
+### Terminal 4: Trained DQN Agent
 
 Open a new terminal:
 
@@ -146,20 +211,14 @@ uv run python -m rl.control_runner ^
 
 Use `--decision-interval 0` only for quick tests. For a live dashboard demo, keep the default interval so the control FSM has time to show transitions.
 
-## 6. Optional Vision Smoke Test
+## 4. Run Only the Vision Smoke Test
 
 The Docker vision service currently runs a short smoke test and exits when complete.
 
 Build:
 
 ```bash
-docker compose build vision
-```
-
-Run:
-
-```bash
-docker compose up -d vision
+docker compose up --build redis vision
 ```
 
 Inspect logs:
@@ -174,7 +233,7 @@ Check vehicle event count:
 docker exec smart-traffic-system-redis-1 redis-cli XLEN vehicle_counts
 ```
 
-## 7. Optional Mock Agent
+## 5. Optional Mock Agent
 
 Use this only to test the control service without running SUMO/model:
 
@@ -187,16 +246,7 @@ The mock sends two phase commands:
 - `EAST_WEST`
 - `NORTH_SOUTH`
 
-## 8. Useful Redis Debug Commands
-
-Read stream lengths:
-
-```bash
-docker exec smart-traffic-system-redis-1 redis-cli XLEN vehicle_counts
-docker exec smart-traffic-system-redis-1 redis-cli XLEN agent_commands
-docker exec smart-traffic-system-redis-1 redis-cli XLEN phase_states
-docker exec smart-traffic-system-redis-1 redis-cli XLEN reasoning_logs
-```
+## 6. Useful Redis Debug Commands
 
 Read the latest reasoning log:
 
@@ -210,7 +260,7 @@ Read the latest phase state:
 docker exec smart-traffic-system-redis-1 redis-cli XREVRANGE phase_states + - COUNT 1
 ```
 
-## 9. Benchmark a Checkpoint
+## 7. Benchmark a Checkpoint
 
 ```bash
 uv run python -m benchmark.compare ^
@@ -229,6 +279,26 @@ benchmark/results/
 
 ## Troubleshooting
 
+### Docker build cannot find the checkpoint
+
+Make sure this file exists before starting the full stack:
+
+```text
+checkpoints/dqn_ew_repair_best.pt
+```
+
+The compose file mounts `./checkpoints` into the agent container at runtime.
+
+### Agent exits after the episode
+
+That is expected. The default agent command runs one SUMO episode.
+
+To run another episode:
+
+```bash
+docker compose up agent
+```
+
 ### Docker says Redis is already running
 
 That is fine. Check:
@@ -237,9 +307,21 @@ That is fine. Check:
 docker compose ps
 ```
 
+### Docker says a port is already allocated
+
+Override the host-facing port and start again:
+
+```bash
+DASHBOARD_HOST_PORT=8503 docker compose up -d dashboard
+API_HOST_PORT=8001 docker compose up -d api
+REDIS_HOST_PORT=6380 docker compose up -d redis
+```
+
 ### SUMO cannot be found
 
-Install SUMO and either add its `bin` directory to `PATH` or set `SUMO_HOME`.
+For Docker mode, SUMO is installed inside `docker/app/Dockerfile`.
+
+For local development mode, install SUMO and either add its `bin` directory to `PATH` or set `SUMO_HOME`.
 
 Example Windows path:
 
@@ -264,4 +346,3 @@ docker exec smart-traffic-system-redis-1 redis-cli XLEN agent_commands
 ```
 
 If it is not increasing, start `rl.control_runner` or `tests.mock_agent`.
-

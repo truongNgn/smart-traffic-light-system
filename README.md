@@ -130,11 +130,9 @@ checkpoints/            Local trained model checkpoints
 
 ## Requirements
 
-- Python 3.11+
-- `uv`
 - Docker Desktop
-- SUMO installed locally and available on `PATH`, or `SUMO_HOME` configured
 - A trained checkpoint in `checkpoints/`
+- Python 3.11+, `uv`, and local SUMO only if you want to run services outside Docker
 
 Recommended checkpoint:
 
@@ -143,6 +141,49 @@ checkpoints/dqn_ew_repair_best.pt
 ```
 
 ## Quick Start
+
+Start the full Docker stack:
+
+```bash
+docker compose up --build
+```
+
+This starts:
+
+- Redis
+- FastAPI telemetry bridge
+- control service
+- Streamlit dashboard
+- trained DQN agent runner
+- vision smoke producer
+
+Open the dashboard:
+
+```text
+http://localhost:8502
+```
+
+Open the API health check:
+
+```text
+http://localhost:8000/health
+```
+
+Stop the stack:
+
+```bash
+docker compose down
+```
+
+The Docker dashboard publishes host port `8502` to avoid clashing with a local Streamlit session on `8501`. Override host ports when needed:
+
+```bash
+REDIS_HOST_PORT=6380 API_HOST_PORT=8001 DASHBOARD_HOST_PORT=8503 docker compose up --build
+```
+
+## Local Development Run
+
+Use this mode when you want faster iteration with local Python tools.
 
 Install dependencies:
 
@@ -215,11 +256,10 @@ uv run python -m rl.control_runner \
 
 ## Vision Docker Smoke Test
 
-Build and run the vision image:
+Run only Redis and the vision smoke service:
 
 ```bash
-docker compose build vision
-docker compose up -d vision
+docker compose up --build redis vision
 ```
 
 The current container runs `vision.producer.smoke_test`, publishes events into Redis, then exits successfully.
@@ -275,7 +315,6 @@ Some integration tests require SUMO and skip cleanly when SUMO is unavailable.
 
 ## Current Limitations
 
-- Docker Compose currently starts Redis and the vision smoke service. API, control, dashboard, and DQN runner are run locally with `uv`.
 - The vision service is currently a smoke-test container, not a long-running multi-camera deployment.
 - The dashboard is Streamlit v1; a richer React dashboard is a natural next step.
 - The model controls a SUMO simulation loop; physical hardware integration would require an adapter beneath `control/`.
@@ -291,4 +330,3 @@ This project demonstrates the kind of engineering required to move an ML idea to
 - validating integration with tests and runtime smoke checks
 
 It is intentionally shaped like a production system, not a single-script experiment.
-
