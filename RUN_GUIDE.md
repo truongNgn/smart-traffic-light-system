@@ -64,7 +64,7 @@ Check service status:
 docker compose ps
 ```
 
-Docker publishes the dashboard on host port `8502` while Streamlit still runs on container port `8501`. This avoids collisions with a local Streamlit dev session. Override host ports when needed:
+Docker publishes Redis on host port `6380` and the dashboard on host port `8502`. This avoids collisions with local Redis or Streamlit dev sessions. Override host ports when needed:
 
 ```bash
 REDIS_HOST_PORT=6380 API_HOST_PORT=8001 DASHBOARD_HOST_PORT=8503 docker compose up --build
@@ -189,6 +189,13 @@ PowerShell one-line version:
 
 ```powershell
 uv run python -m rl.control_runner --checkpoint checkpoints/dqn_ew_repair_best.pt --sumocfg simulation/net/intersection.sumocfg --episode-duration 300 --backend traci
+```
+
+PowerShell SUMO GUI demo connected to the Docker dashboard stack:
+
+```powershell
+$env:REDIS_HOST = "127.0.0.1"; $env:REDIS_PORT = "6380"
+.\.venv\Scripts\python.exe -m rl.control_runner --checkpoint checkpoints/dqn_ew_repair_best.pt --sumocfg simulation/net/intersection.sumocfg --episode-duration 300 --backend traci --gui --decision-interval 1
 ```
 
 The runner loads the checkpoint, starts the SUMO environment, selects phases with the DQN, and publishes:

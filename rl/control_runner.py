@@ -19,9 +19,11 @@ from common.config import agent_runtime_settings, redis_settings, settings
 from common.constants import PhaseAction as PhaseActionEnum
 from common.logging import configure_logging, get_logger
 from common.schemas.control import PhaseAction, ReasoningLog
+from common.schemas.vision import VehicleCountEvent
 from rl.agent.dqn_agent import DQNAgent
 from rl.env.traffic_env import SumoTrafficEnv
 from rl.train.checkpoint import load_checkpoint
+from simulation.state.grid_encoder import APPROACH_EDGE_BY_DIRECTION
 
 logger = get_logger(component="agent_runtime")
 
@@ -54,6 +56,32 @@ def publish_decision(
 
     redis_client.xadd("agent_commands", {"data": action.model_dump_json()})
     redis_client.xadd("reasoning_logs", {"data": reasoning.model_dump_json()})
+
+
+def sumo_direction_counts(env: SumoTrafficEnv) -> dict[str, int]:
+    if env._sim is None:  # noqa: SLF001 - runtime bridge needs live SUMO telemetry.
+        return {}
+
+    counts = {direction.name: 0 for direction in APPROACH_EDGE_BY_DIRECTION}
+    traci_conn = env._sim.traci  # noqa: SLF001
+    edge_to_direction = {edge_id: direction.name for direction, edge_id in APPROACH_EDGE_BY_DIRECTION.items()}
+    for vehicle_id in traci_conn.vehicle.getIDList():
+        direction = edge_to_direction.get(traci_conn.vehicle.getRoadID(vehicle_id))
+        if direction:
+            counts[direction] += 1
+    return counts
+
+
+def publish_sumo_counts(redis_client: redis.Redis, env: SumoTrafficEnv) -> None:
+    counts = sumo_direction_counts(env)
+    if not counts:
+        return
+    event = VehicleCountEvent(
+        camera_id="sumo",
+        timestamp_s=time.time(),
+        lane_counts=counts,
+    )
+    redis_client.xadd("vehicle_counts", {"data": event.model_dump_json()})
 
 
 def run(
@@ -116,6 +144,7 @@ def run(
             )
 
             obs, reward, terminated, truncated, info = env.step(phase.value)
+            publish_sumo_counts(redis_client, env)
             logger.info(
                 "agent_runtime.step",
                 sim_time_s=info["sim_time_s"],

@@ -175,7 +175,7 @@ Stop the stack:
 docker compose down
 ```
 
-The Docker dashboard publishes host port `8502` to avoid clashing with a local Streamlit session on `8501`. Override host ports when needed:
+The Docker stack publishes Redis on host port `6380` and the dashboard on host port `8502` to avoid clashing with local Redis/Streamlit sessions. Override host ports when needed:
 
 ```bash
 REDIS_HOST_PORT=6380 API_HOST_PORT=8001 DASHBOARD_HOST_PORT=8503 docker compose up --build
@@ -237,6 +237,13 @@ PowerShell one-line version:
 
 ```powershell
 uv run python -m rl.control_runner --checkpoint checkpoints/dqn_ew_repair_best.pt --sumocfg simulation/net/intersection.sumocfg --episode-duration 300 --backend traci
+```
+
+When this local runner should publish into the Docker dashboard stack, point it at the Docker Redis host port:
+
+```powershell
+$env:REDIS_HOST = "127.0.0.1"; $env:REDIS_PORT = "6380"
+.\.venv\Scripts\python.exe -m rl.control_runner --checkpoint checkpoints/dqn_ew_repair_best.pt --sumocfg simulation/net/intersection.sumocfg --episode-duration 300 --backend traci --gui --decision-interval 1
 ```
 
 ## Fast Integration Smoke Test

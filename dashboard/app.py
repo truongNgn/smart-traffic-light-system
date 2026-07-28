@@ -120,8 +120,13 @@ def build_intersection_html(phase, active_dirs):
 
     def vehicles(direction):
         count = min(lane_counts[direction], 9)
-        dots = "".join('<span class="vehicle-dot"></span>' for _ in range(count))
-        return f'<div class="vehicles vehicles-{direction.lower()}">{dots}</div>'
+        flow_class = "is-moving" if signal[direction] == "GREEN" else "is-caution" if signal[direction] == "YELLOW" else "is-stopped"
+        dots = "".join(
+            f'<span class="vehicle-dot" style="--i:{index};"></span>' for index in range(count)
+        )
+        if count == 0:
+            dots = '<span class="vehicle-placeholder"></span>'
+        return f'<div class="vehicles vehicles-{direction.lower()} {flow_class}">{dots}</div>'
 
     phase_label = PHASE_NAME.get(normalize_phase(phase.get("active_phase")), "UNKNOWN")
     if phase.get("is_all_red"):
@@ -327,11 +332,28 @@ st.markdown(
         position: absolute; z-index: 3; display: flex; gap: 7px; flex-wrap: wrap;
         max-width: 152px; align-content: flex-start;
       }
-      .vehicle-dot { width: 17px; height: 28px; border-radius: 5px; background: #f8fafc; border: 2px solid #38bdf8; box-shadow: 0 3px 8px rgba(15,23,42,0.35); }
+      .vehicle-dot {
+        width: 17px; height: 28px; border-radius: 5px; background: #f8fafc;
+        border: 2px solid #38bdf8; box-shadow: 0 3px 8px rgba(15,23,42,0.35);
+        animation-delay: calc(var(--i) * -0.32s);
+      }
+      .vehicle-placeholder { width: 1px; height: 28px; opacity: 0; }
+      .is-moving .vehicle-dot { animation: vehicle-flow 1.7s linear infinite; border-color: #22c55e; }
+      .is-caution .vehicle-dot { animation: vehicle-flow 2.8s linear infinite; border-color: #f59e0b; }
+      .is-stopped .vehicle-dot { animation: vehicle-idle 1.8s ease-in-out infinite; border-color: #94a3b8; }
       .vehicles-north { left: 43%; top: 6%; width: 80px; transform: rotate(90deg); }
       .vehicles-south { right: 43%; bottom: 6%; width: 80px; transform: rotate(90deg); }
       .vehicles-east { right: 6%; top: 44%; width: 142px; }
       .vehicles-west { left: 6%; bottom: 44%; width: 142px; }
+      @keyframes vehicle-flow {
+        0% { transform: translateX(0); opacity: 0.25; }
+        12% { opacity: 1; }
+        100% { transform: translateX(74px); opacity: 0.15; }
+      }
+      @keyframes vehicle-idle {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(-1px); }
+      }
       .count-badge {
         position: absolute; z-index: 5; width: 38px; height: 38px; border-radius: 999px;
         display: grid; place-items: center; background: #fff; color: #0f172a;
