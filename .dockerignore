@@ -1,0 +1,16 @@
+.git
+.agents
+.codex
+.claude
+.pytest_cache
+.tmp
+.ruff_cache
+.mypy_cache
+.uv-cache
+.venv
+__pycache__
+*.pyc
+benchmark/results
+checkpoints
+notebooks
+*.mp4
