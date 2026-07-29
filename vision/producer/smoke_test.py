@@ -15,6 +15,7 @@ from common.schemas.vision import VehicleCountEvent
 from streaming.bus.redis_client import RedisStreamBus
 from vision.detection.yolo import YoloDetector
 from vision.ingestion.simulator import VideoStreamSimulator
+from vision.tracking.roi import ZoneCounter
 
 logger = get_logger(component="smoke_test")
 
@@ -65,6 +66,7 @@ def main() -> None:
         conf_threshold=vision_settings.conf_threshold,
         iou_threshold=vision_settings.iou_threshold,
     )
+    zone_counter = ZoneCounter(rois=vision_settings.rois)
     
     # We allow the bus connection to fail gracefully if Redis is not running locally outside Docker
     bus = None
@@ -83,11 +85,29 @@ def main() -> None:
             # 2. Process frame
             annotated_frame, class_counts, centroids = detector.process_frame(frame)
             
+            # 2.5 ROI Tracking & Drawing
+            lane_counts = zone_counter.update(centroids, frame_shape=frame.shape)
+            annotated_frame = zone_counter.draw_zones(annotated_frame)
+            
+            y_offset = 30
+            for lane_name, count in lane_counts.items():
+                cv2.putText(
+                    annotated_frame,
+                    f"{lane_name}: {count} vehicles",
+                    (10, y_offset),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    0.8,
+                    (0, 255, 255),  # Màu vàng
+                    2,
+                )
+                y_offset += 30
+            
             # 3. Create Event
             event = VehicleCountEvent(
                 camera_id=simulator.camera_id,
                 timestamp_s=timestamp_s,
                 class_counts=class_counts,
+                lane_counts=lane_counts,
                 centroids=centroids,
             )
             

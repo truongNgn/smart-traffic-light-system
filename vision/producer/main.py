@@ -68,7 +68,7 @@ def main() -> None:
             annotated_frame, class_counts, centroids = detector.process_frame(frame)
             
             # 2. Advanced Tracking Metrics
-            lane_counts = zone_counter.update(centroids)
+            lane_counts = zone_counter.update(centroids, frame_shape=frame.shape)
             mean_speed_mps = speed_estimator.update(centroids, current_time)
 
             # 3. Create Event

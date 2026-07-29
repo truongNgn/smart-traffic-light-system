@@ -59,14 +59,13 @@ class VisionSettings(BaseSettings):
         default=0.45,
         description="NMS IoU threshold for YOLO detection.",
     )
-    # A generic mapping of lane/ROI name to polygon points [(x,y), ...]
-    # For now, we will use hardcoded defaults that cover standard frames,
-    # or rely on speed calculation across the whole frame if ROIs aren't strictly defined.
-    rois: dict[str, list[tuple[int, int]]] = Field(
+    rois: dict[str, list[tuple[float, float]]] = Field(
         default={
-            "Lane-Center": [(250, 0), (390, 0), (390, 480), (250, 480)],
+            # Camera đặt ở cột đèn, nhìn ngược dòng xe đi tới.
+            # Giao thông đi bên phải (Việt Nam) -> dòng xe tiến lại gần camera sẽ nằm ở NỬA TRÁI màn hình.
+            "Queue-Zone": [(0.05, 0.95), (0.25, 0.25), (0.50, 0.25), (0.50, 0.95)]
         },
-        description="Dictionary mapping lane ID to a list of (x,y) polygon points.",
+        description="Dictionary mapping lane ID to a list of relative (x,y) polygon points [0.0 - 1.0].",
     )
 
 
