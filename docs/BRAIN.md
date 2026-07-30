@@ -397,6 +397,35 @@ if other_phase_queue > current_phase_queue * 2 and other_phase_red_time > 60:
     force other phase
 ```
 
+## Kaggle Runtime Overload Note
+
+The balanced fine-tune notebook became much slower than the older from-scratch run because the workload grew in two places:
+
+1. Training used many 1800s-2400s congested episodes, including 2.5x/3.5x stress cases.
+2. Checkpoint selection evaluated too many candidates with full benchmark settings.
+
+The expensive part was especially checkpoint evaluation:
+
+```text
+many periodic checkpoints
+* 5 scenarios
+* 5 seeds
+* 1800s-2400s SUMO duration
+```
+
+This can easily become hundreds or nearly one thousand SUMO episodes after training, so Kaggle may look stuck even when it is still simulating.
+
+The notebook now uses a two-stage selection flow:
+
+```text
+train shorter scenario windows
+-> save fewer periodic checkpoints
+-> quick screen last 8 candidates with 2 seeds
+-> full benchmark only base + top 3 candidates with 5 seeds
+```
+
+The full benchmark durations are still used for the final guardrail. The quick screen only reduces wasted time on weak checkpoints.
+
 ## Deployment Recommendation
 
 Do not deploy a checkpoint only because it improves EW3x.

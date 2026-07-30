@@ -68,7 +68,7 @@ class ControlService:
                                 
                                 # Do not await the transition directly in the read loop if you want 
                                 # to keep reading, but FSM has a lock so we can just fire it as a task.
-                                asyncio.create_task(self.fsm.transition_to(action.target_direction))
+                                asyncio.create_task(self.fsm.transition_to(action.target_phase))
                                 
                             except ValidationError as e:
                                 logger.error("Invalid PhaseAction", error=str(e))

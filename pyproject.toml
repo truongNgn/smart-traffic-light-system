@@ -58,7 +58,17 @@ warn_unused_ignores = true
 testpaths = ["tests"]
 
 [tool.setuptools]
-packages = ["common", "rl", "simulation", "vision", "streaming"]
+packages = [
+    "api",
+    "benchmark",
+    "common",
+    "control",
+    "dashboard",
+    "rl",
+    "simulation",
+    "vision",
+    "streaming",
+]
 
 [[tool.uv.index]]
 name = "pytorch"

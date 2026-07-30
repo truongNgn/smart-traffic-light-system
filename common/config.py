@@ -8,6 +8,7 @@ from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from common.constants import DEFAULT_SEED, DEFAULT_STEP_LENGTH_S
+from common.constants import GREEN_DURATION_S
 
 
 class SimulationSettings(BaseSettings):
@@ -58,14 +59,13 @@ class VisionSettings(BaseSettings):
         default=0.45,
         description="NMS IoU threshold for YOLO detection.",
     )
-    # A generic mapping of lane/ROI name to polygon points [(x,y), ...]
-    # For now, we will use hardcoded defaults that cover standard frames,
-    # or rely on speed calculation across the whole frame if ROIs aren't strictly defined.
-    rois: dict[str, list[tuple[int, int]]] = Field(
+    rois: dict[str, list[tuple[float, float]]] = Field(
         default={
-            "Lane-Center": [(250, 0), (390, 0), (390, 480), (250, 480)],
+            # Camera đặt ở cột đèn, nhìn ngược dòng xe đi tới.
+            # Giao thông đi bên phải (Việt Nam) -> dòng xe tiến lại gần camera sẽ nằm ở NỬA TRÁI màn hình.
+            "Queue-Zone": [(0.05, 0.95), (0.25, 0.25), (0.50, 0.25), (0.50, 0.95)]
         },
-        description="Dictionary mapping lane ID to a list of (x,y) polygon points.",
+        description="Dictionary mapping lane ID to a list of relative (x,y) polygon points [0.0 - 1.0].",
     )
 
 
@@ -90,7 +90,25 @@ class ApiSettings(BaseSettings):
     cors_origins: list[str] = Field(default=["*"])
 
 
+class AgentRuntimeSettings(BaseSettings):
+    """Settings for the trained DQN runtime that publishes live decisions."""
+
+    model_config = SettingsConfigDict(env_prefix="AGENT_", env_file=".env", extra="ignore")
+
+    checkpoint_path: str = Field(default="checkpoints/dqn_ew_repair_best.pt")
+    episode_duration_s: float = Field(default=300.0)
+    seed: int = Field(default=DEFAULT_SEED)
+    backend: Literal["traci", "libsumo"] = Field(default="traci")
+    use_gui: bool = Field(default=False)
+    decision_interval_s: float = Field(
+        default=GREEN_DURATION_S,
+        ge=0.0,
+        description="Wall-clock delay between live control decisions. Use 0 for fast smoke tests.",
+    )
+
+
 settings = SimulationSettings()
 vision_settings = VisionSettings()
 redis_settings = RedisSettings()
 api_settings = ApiSettings()
+agent_runtime_settings = AgentRuntimeSettings()

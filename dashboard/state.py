@@ -1,12 +1,17 @@
 import threading
 import json
+import os
 import time
+import redis
 import websocket
 from collections import deque
 import structlog
 from typing import Dict, Any, List
 
 logger = structlog.get_logger("dashboard_state")
+WS_URL = os.getenv("DASHBOARD_WS_URL", "ws://localhost:8000/ws/telemetry")
+REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
+REDIS_PORT = int(os.getenv("REDIS_PORT", "6379"))
 
 # Global State Stores
 MAX_HISTORY = 60  # Store last 60 events per lane
@@ -20,6 +25,8 @@ vehicle_counts: Dict[str, deque] = {
 }
 
 latest_phase_state: Dict[str, Any] = {
+    "active_phase": None,
+    "active_directions": [],
     "active_direction": None,
     "is_yellow": False,
     "is_all_red": True,
@@ -28,33 +35,50 @@ latest_phase_state: Dict[str, Any] = {
 
 latest_reasoning: List[Dict[str, Any]] = []
 
+
+def hydrate_from_redis() -> None:
+    """Load the latest stream values so a restarted dashboard is not empty."""
+    try:
+        client = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, decode_responses=True)
+        for stream_name in ("vehicle_counts", "phase_states", "reasoning_logs"):
+            messages = client.xrevrange(stream_name, count=20)
+            for _, data in reversed(messages):
+                raw = data.get("data")
+                if not raw:
+                    continue
+                _apply_payload(stream_name, json.loads(raw))
+        client.close()
+    except Exception as e:
+        logger.warning("Could not hydrate dashboard state from Redis", error=str(e))
+
+
 def on_message(ws, message):
     try:
         envelope = json.loads(message)
         topic = envelope.get("topic")
         payload = envelope.get("payload", {})
-
-        if topic == "vehicle_counts":
-            ts = payload.get("timestamp_s", time.time())
-            counts = payload.get("counts", {})
-            for direction, count in counts.items():
-                if direction in vehicle_counts:
-                    vehicle_counts[direction].append({"time": ts, "count": count})
-                    
-        elif topic == "phase_states":
-            global latest_phase_state
-            # Map enum index back to string if needed, or rely on active_direction name
-            # The payload will have active_direction as integer if it's an enum, 
-            # wait, Pydantic serializes Enum as integer if not configured, let's check it.
-            latest_phase_state = payload
-            
-        elif topic == "reasoning_logs":
-            latest_reasoning.insert(0, payload)
-            if len(latest_reasoning) > 20:
-                latest_reasoning.pop()
-                
+        _apply_payload(topic, payload)
     except Exception as e:
         logger.error("Error parsing websocket message", error=str(e))
+
+
+def _apply_payload(topic: str, payload: Dict[str, Any]) -> None:
+    if topic == "vehicle_counts":
+        ts = payload.get("timestamp_s", time.time())
+        counts = payload.get("counts") or payload.get("lane_counts", {})
+        for direction, count in counts.items():
+            normalized = _normalize_direction(direction)
+            if normalized in vehicle_counts:
+                vehicle_counts[normalized].append({"time": ts, "count": count})
+
+    elif topic == "phase_states":
+        global latest_phase_state
+        latest_phase_state = payload
+
+    elif topic == "reasoning_logs":
+        latest_reasoning.insert(0, payload)
+        if len(latest_reasoning) > 20:
+            latest_reasoning.pop()
 
 def on_error(ws, error):
     pass  # Suppress error logs to keep terminal clean
@@ -65,11 +89,25 @@ def on_close(ws, close_status_code, close_msg):
 def on_open(ws):
     logger.info("WebSocket connected to telemetry stream.")
 
+def _normalize_direction(value: str) -> str:
+    value = value.upper()
+    if value in vehicle_counts:
+        return value
+    if value.startswith("N"):
+        return "NORTH"
+    if value.startswith("S"):
+        return "SOUTH"
+    if value.startswith("E"):
+        return "EAST"
+    if value.startswith("W"):
+        return "WEST"
+    return value
+
 def run_websocket():
     # Run forever with automatic reconnect
     while True:
         ws = websocket.WebSocketApp(
-            "ws://localhost:8000/ws/telemetry",
+            WS_URL,
             on_open=on_open,
             on_message=on_message,
             on_error=on_error,
@@ -83,6 +121,7 @@ _thread_started = False
 def start_background_thread():
     global _thread_started
     if not _thread_started:
+        hydrate_from_redis()
         t = threading.Thread(target=run_websocket, daemon=True)
         t.start()
         _thread_started = True
