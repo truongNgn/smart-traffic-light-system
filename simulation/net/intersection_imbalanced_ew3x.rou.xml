@@ -1,0 +1,63 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<routes>
+    <route id="route_N_to_S" edges="N2C C2S" />
+    <route id="route_N_to_E" edges="N2C C2E" />
+    <route id="route_N_to_W" edges="N2C C2W" />
+    <route id="route_S_to_N" edges="S2C C2N" />
+    <route id="route_S_to_E" edges="S2C C2E" />
+    <route id="route_S_to_W" edges="S2C C2W" />
+    <route id="route_E_to_N" edges="E2C C2N" />
+    <route id="route_E_to_S" edges="E2C C2S" />
+    <route id="route_E_to_W" edges="E2C C2W" />
+    <route id="route_W_to_N" edges="W2C C2N" />
+    <route id="route_W_to_S" edges="W2C C2S" />
+    <route id="route_W_to_E" edges="W2C C2E" />
+    <flow id="flow_001_car_N_S" type="car" route="route_N_to_S" begin="0" end="1800" vehsPerHour="180.00" departLane="best" departSpeed="max" />
+    <flow id="flow_002_motorcycle_N_S" type="motorcycle" route="route_N_to_S" begin="0" end="1800" vehsPerHour="120.00" departLane="best" departSpeed="max" />
+    <flow id="flow_003_bus_N_S" type="bus" route="route_N_to_S" begin="0" end="1800" vehsPerHour="10.00" departLane="best" departSpeed="max" />
+    <flow id="flow_004_truck_N_S" type="truck" route="route_N_to_S" begin="0" end="1800" vehsPerHour="15.00" departLane="best" departSpeed="max" />
+    <flow id="flow_005_car_N_E" type="car" route="route_N_to_E" begin="0" end="1800" vehsPerHour="90.00" departLane="best" departSpeed="max" />
+    <flow id="flow_006_motorcycle_N_E" type="motorcycle" route="route_N_to_E" begin="0" end="1800" vehsPerHour="60.00" departLane="best" departSpeed="max" />
+    <flow id="flow_007_bus_N_E" type="bus" route="route_N_to_E" begin="0" end="1800" vehsPerHour="5.00" departLane="best" departSpeed="max" />
+    <flow id="flow_008_truck_N_E" type="truck" route="route_N_to_E" begin="0" end="1800" vehsPerHour="7.50" departLane="best" departSpeed="max" />
+    <flow id="flow_009_car_N_W" type="car" route="route_N_to_W" begin="0" end="1800" vehsPerHour="90.00" departLane="best" departSpeed="max" />
+    <flow id="flow_010_motorcycle_N_W" type="motorcycle" route="route_N_to_W" begin="0" end="1800" vehsPerHour="60.00" departLane="best" departSpeed="max" />
+    <flow id="flow_011_bus_N_W" type="bus" route="route_N_to_W" begin="0" end="1800" vehsPerHour="5.00" departLane="best" departSpeed="max" />
+    <flow id="flow_012_truck_N_W" type="truck" route="route_N_to_W" begin="0" end="1800" vehsPerHour="7.50" departLane="best" departSpeed="max" />
+    <flow id="flow_013_car_S_N" type="car" route="route_S_to_N" begin="0" end="1800" vehsPerHour="180.00" departLane="best" departSpeed="max" />
+    <flow id="flow_014_motorcycle_S_N" type="motorcycle" route="route_S_to_N" begin="0" end="1800" vehsPerHour="120.00" departLane="best" departSpeed="max" />
+    <flow id="flow_015_bus_S_N" type="bus" route="route_S_to_N" begin="0" end="1800" vehsPerHour="10.00" departLane="best" departSpeed="max" />
+    <flow id="flow_016_truck_S_N" type="truck" route="route_S_to_N" begin="0" end="1800" vehsPerHour="15.00" departLane="best" departSpeed="max" />
+    <flow id="flow_017_car_S_E" type="car" route="route_S_to_E" begin="0" end="1800" vehsPerHour="90.00" departLane="best" departSpeed="max" />
+    <flow id="flow_018_motorcycle_S_E" type="motorcycle" route="route_S_to_E" begin="0" end="1800" vehsPerHour="60.00" departLane="best" departSpeed="max" />
+    <flow id="flow_019_bus_S_E" type="bus" route="route_S_to_E" begin="0" end="1800" vehsPerHour="5.00" departLane="best" departSpeed="max" />
+    <flow id="flow_020_truck_S_E" type="truck" route="route_S_to_E" begin="0" end="1800" vehsPerHour="7.50" departLane="best" departSpeed="max" />
+    <flow id="flow_021_car_S_W" type="car" route="route_S_to_W" begin="0" end="1800" vehsPerHour="90.00" departLane="best" departSpeed="max" />
+    <flow id="flow_022_motorcycle_S_W" type="motorcycle" route="route_S_to_W" begin="0" end="1800" vehsPerHour="60.00" departLane="best" departSpeed="max" />
+    <flow id="flow_023_bus_S_W" type="bus" route="route_S_to_W" begin="0" end="1800" vehsPerHour="5.00" departLane="best" departSpeed="max" />
+    <flow id="flow_024_truck_S_W" type="truck" route="route_S_to_W" begin="0" end="1800" vehsPerHour="7.50" departLane="best" departSpeed="max" />
+    <flow id="flow_025_car_E_N" type="car" route="route_E_to_N" begin="0" end="1800" vehsPerHour="270.00" departLane="best" departSpeed="max" />
+    <flow id="flow_026_motorcycle_E_N" type="motorcycle" route="route_E_to_N" begin="0" end="1800" vehsPerHour="180.00" departLane="best" departSpeed="max" />
+    <flow id="flow_027_bus_E_N" type="bus" route="route_E_to_N" begin="0" end="1800" vehsPerHour="15.00" departLane="best" departSpeed="max" />
+    <flow id="flow_028_truck_E_N" type="truck" route="route_E_to_N" begin="0" end="1800" vehsPerHour="22.50" departLane="best" departSpeed="max" />
+    <flow id="flow_029_car_E_S" type="car" route="route_E_to_S" begin="0" end="1800" vehsPerHour="270.00" departLane="best" departSpeed="max" />
+    <flow id="flow_030_motorcycle_E_S" type="motorcycle" route="route_E_to_S" begin="0" end="1800" vehsPerHour="180.00" departLane="best" departSpeed="max" />
+    <flow id="flow_031_bus_E_S" type="bus" route="route_E_to_S" begin="0" end="1800" vehsPerHour="15.00" departLane="best" departSpeed="max" />
+    <flow id="flow_032_truck_E_S" type="truck" route="route_E_to_S" begin="0" end="1800" vehsPerHour="22.50" departLane="best" departSpeed="max" />
+    <flow id="flow_033_car_E_W" type="car" route="route_E_to_W" begin="0" end="1800" vehsPerHour="540.00" departLane="best" departSpeed="max" />
+    <flow id="flow_034_motorcycle_E_W" type="motorcycle" route="route_E_to_W" begin="0" end="1800" vehsPerHour="360.00" departLane="best" departSpeed="max" />
+    <flow id="flow_035_bus_E_W" type="bus" route="route_E_to_W" begin="0" end="1800" vehsPerHour="30.00" departLane="best" departSpeed="max" />
+    <flow id="flow_036_truck_E_W" type="truck" route="route_E_to_W" begin="0" end="1800" vehsPerHour="45.00" departLane="best" departSpeed="max" />
+    <flow id="flow_037_car_W_N" type="car" route="route_W_to_N" begin="0" end="1800" vehsPerHour="270.00" departLane="best" departSpeed="max" />
+    <flow id="flow_038_motorcycle_W_N" type="motorcycle" route="route_W_to_N" begin="0" end="1800" vehsPerHour="180.00" departLane="best" departSpeed="max" />
+    <flow id="flow_039_bus_W_N" type="bus" route="route_W_to_N" begin="0" end="1800" vehsPerHour="15.00" departLane="best" departSpeed="max" />
+    <flow id="flow_040_truck_W_N" type="truck" route="route_W_to_N" begin="0" end="1800" vehsPerHour="22.50" departLane="best" departSpeed="max" />
+    <flow id="flow_041_car_W_S" type="car" route="route_W_to_S" begin="0" end="1800" vehsPerHour="270.00" departLane="best" departSpeed="max" />
+    <flow id="flow_042_motorcycle_W_S" type="motorcycle" route="route_W_to_S" begin="0" end="1800" vehsPerHour="180.00" departLane="best" departSpeed="max" />
+    <flow id="flow_043_bus_W_S" type="bus" route="route_W_to_S" begin="0" end="1800" vehsPerHour="15.00" departLane="best" departSpeed="max" />
+    <flow id="flow_044_truck_W_S" type="truck" route="route_W_to_S" begin="0" end="1800" vehsPerHour="22.50" departLane="best" departSpeed="max" />
+    <flow id="flow_045_car_W_E" type="car" route="route_W_to_E" begin="0" end="1800" vehsPerHour="540.00" departLane="best" departSpeed="max" />
+    <flow id="flow_046_motorcycle_W_E" type="motorcycle" route="route_W_to_E" begin="0" end="1800" vehsPerHour="360.00" departLane="best" departSpeed="max" />
+    <flow id="flow_047_bus_W_E" type="bus" route="route_W_to_E" begin="0" end="1800" vehsPerHour="30.00" departLane="best" departSpeed="max" />
+    <flow id="flow_048_truck_W_E" type="truck" route="route_W_to_E" begin="0" end="1800" vehsPerHour="45.00" departLane="best" departSpeed="max" />
+</routes>
