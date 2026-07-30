@@ -26,6 +26,7 @@ dependencies = [
     "websocket-client>=1.7.0",
     "pandas>=2.1.0",
     "plotly>=5.18.0",
+    "matplotlib>=3.8.0",
 ]
 
 [project.optional-dependencies]
@@ -45,9 +46,21 @@ fast-sim = [
 [tool.ruff]
 line-length = 100
 target-version = "py311"
+extend-exclude = ["notebooks"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]
+ignore = [
+    "E501",   # Existing long lines are tracked as polish debt.
+    "I001",   # Import-order cleanup is intentionally deferred.
+    "UP006",  # Builtin collection generics cleanup is intentionally deferred.
+    "UP017",
+    "UP035",
+    "UP037",
+    "UP045",
+    "B007",
+    "B905",
+]
 
 [tool.mypy]
 python_version = "3.11"

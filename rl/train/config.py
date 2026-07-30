@@ -7,6 +7,7 @@ from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from common.constants import DEFAULT_SEED
+from simulation.traci_wrapper.session import Backend
 
 
 class TrainingConfig(BaseSettings):
@@ -44,7 +45,7 @@ class TrainingConfig(BaseSettings):
         ge=0.0,
         description="Per-phase waiting-time threshold that activates the soft red-time guard.",
     )
-    backend: str = Field(
+    backend: Backend = Field(
         default="libsumo",
         description="'libsumo' (default, ~8x faster - training never needs a GUI) or "
         "'traci' (subprocess+socket). train.py falls back to 'traci' with a "

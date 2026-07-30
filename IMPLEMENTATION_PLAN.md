@@ -2,7 +2,7 @@
 
 **A Real-Time Streaming, YOLO + Deep Reinforcement Learning Traffic Control System**
 
-> Reference methodology: *Sahal et al. (2023), "Smart Traffic Light Using YOLO Based Camera with Deep Reinforcement Learning Algorithm."* This plan implements the paper's control logic (80-cell state, 4 discrete actions, yellow/all-red buffers, waiting-time-delta reward, 80→400×5→4 DQN) and extends it into a scalable, containerized, observable software system.
+> Reference methodology: *Sahal et al. (2023), "Smart Traffic Light Using YOLO Based Camera with Deep Reinforcement Learning Algorithm."* This plan implements the paper's core methodology (80-cell state, yellow/all-red buffers, waiting-time-delta reward, 80→400×5 DQN) with the current codebase's production-safe **2-phase action space**: `EAST_WEST` and `NORTH_SOUTH`. Opposing approaches receive green together, matching a realistic traffic-light program and the checked-in SUMO network.
 
 ---
 
@@ -17,6 +17,18 @@
 8. [Stage 4 — Integration, Training Pipeline & Dashboard](#stage-4)
 9. [Stage 5 — Evaluation, Benchmarking & GitHub Showcase](#stage-5)
 10. [Definition of Done Matrix](#definition-of-done)
+
+---
+
+## Current Codebase Alignment
+
+This plan is intentionally aligned to the current implementation rather than the earlier 4-single-direction draft:
+
+- **Action space:** 2 discrete phases: `EAST_WEST` and `NORTH_SOUTH`.
+- **DQN output:** 2 Q-values, one per phase; the network remains 80 input cells and five 400-unit hidden layers.
+- **Compatibility:** legacy `target_direction` payloads are accepted and mapped to the owning phase, but `target_phase` is the canonical control contract.
+- **Safety rule:** every phase change still goes through yellow then all-red; unchanged phase commands are idempotent no-ops.
+- **Benchmark baseline:** fixed-time alternates the same two axis phases under the same safety buffers as the learned policy.
 
 ---
 
@@ -61,7 +73,7 @@
 **Data contracts (the two seams that must never drift):**
 - `VehicleCountEvent` — Vision → Bus → everyone (per feed: counts by class, speeds, centroids).
 - `IntersectionState` — SUMO → Agent (80-cell grid vector + metadata).
-- `PhaseAction` — Agent → Control Service (action ∈ {E, N, W, S} + safety-phase intent).
+- `PhaseAction` — Agent → Control Service (action ∈ {EAST_WEST, NORTH_SOUTH} + safety-phase intent).
 
 ---
 
@@ -73,7 +85,7 @@ smart-traffic-system/
 │   ├── schemas/                # Pydantic models: events, state, action, telemetry
 │   ├── config/                 # pydantic-settings; env-driven, 12-factor
 │   ├── logging/                # structlog JSON logger factory
-│   └── constants.py            # 80 cells, 4 actions, 2s yellow, 2s all-red, 100m, 4 classes
+│   └── constants.py            # 80 cells, 2 phases, 2s yellow, 2s all-red, 100m, 4 classes
 ├── vision/                     # ENGINEER A
 │   ├── ingestion/              # multi-feed video simulator (loop mp4 → RTSP-like)
 │   ├── detection/              # YOLOv8/v11 wrapper (ultralytics)
@@ -184,21 +196,21 @@ Async tests with `pytest-asyncio` + `httpx` for the API; WebSocket contract test
 <a id="stage-3"></a>
 ## Stage 3 — Deep Reinforcement Learning Agent & Control Loop Development
 
-**Stage Goal:** A trainable DQN that consumes the 80-cell state and emits one of 4 actions, plus a safety-correct control executor that inserts the mandatory yellow + all-red buffers.
+**Stage Goal:** A trainable DQN that consumes the 80-cell state and emits one of 2 axis phases, plus a safety-correct control executor that inserts the mandatory yellow + all-red buffers.
 
-**Deliverables:** PyTorch DQN (80→400×5→4), Gymnasium env, reward engine, and a phase-switch FSM proven safe by tests.
+**Deliverables:** PyTorch DQN (80→400×5→2), Gymnasium env, reward engine, and a phase-switch FSM proven safe by tests.
 
 ### Engineer A
 1. **Decision-handling / control-facing service** (`control/` interface side + API): receive `PhaseAction` from the agent over the bus and drive the executor; expose current phase + reasoning to the dashboard.
-2. **Phase-switch safety executor**: finite-state machine enforcing — on any direction change, insert **2s yellow → 2s all-red** before the new green; no-op fast path when the chosen action equals the current green.
+2. **Phase-switch safety executor**: finite-state machine enforcing — on any phase change, insert **2s yellow → 2s all-red** before the new green; no-op fast path when the chosen action equals the current green.
 3. Emit **AI reasoning logs** (chosen action, Q-values, buffer state) as structured events for the dashboard.
 4. Idempotency + safety: reject illegal transitions; watchdog that fails safe to all-red if the agent stalls.
 
 ### Engineer B
-1. **DQN in PyTorch** (`rl/agent/`): input 80, **5 hidden layers of 400 neurons** (ReLU), output 4 Q-values; target network + experience replay + ε-greedy; Huber loss, Adam.
+1. **DQN in PyTorch** (`rl/agent/`): input 80, **5 hidden layers of 400 neurons** (ReLU), output 2 Q-values; target network + experience replay + ε-greedy; Huber loss, Adam.
 2. **Gymnasium env** (`rl/env/`) wrapping SUMO+TraCI: `reset()` starts an episode, `step(action)` applies the action *through the safety buffers*, advances SUMO, returns `(state80, reward, terminated, truncated, info)`.
 3. **Reward engine** (`rl/reward/`): `r_t = t_{t-1}^T − t_t^T` where `t^T` is accumulated total waiting time of vehicles with speed < 0.1 m/s. Unit-test with scripted waiting-time sequences.
-4. Action space = {E-green, N-green, W-green, S-green}; ensure env applies the same yellow/all-red buffers as the production executor (single source of truth in `common/constants.py`).
+4. Action space = {`EAST_WEST`, `NORTH_SOUTH`}; ensure env applies the same yellow/all-red buffers as the production executor (single source of truth in `common/constants.py`).
 
 ### Shared Deliverables & Integration Checkpoint
 - ✅ **One canonical phase-transition spec** shared by the RL env (B) and the production executor (A) — critical to avoid sim-vs-real drift.
@@ -206,7 +218,7 @@ Async tests with `pytest-asyncio` + `httpx` for the API; WebSocket contract test
 - **Checkpoint demo:** run a short training session; watch reward trend upward over episodes; verify in `sumo-gui` that every direction change shows yellow→all-red.
 
 ### Production Readiness
-Deterministic seeding for reproducibility; DQN shape tests (forward pass on batch → `[B,4]`); FSM property tests enumerating all from→to phase pairs; reward function tested against hand-computed deltas. ADR `0002-reward-and-safety-buffers.md`.
+Deterministic seeding for reproducibility; DQN shape tests (forward pass on batch → `[B,2]`); FSM property tests enumerating all from→to phase pairs; reward function tested against hand-computed deltas. ADR `0002-reward-and-safety-buffers.md`.
 
 ---
 
@@ -248,7 +260,7 @@ Training config fully env/file-driven; runs reproducible from a logged seed + co
 
 ### Both Engineers
 1. **End-to-end integration tests**: a smoke test that boots the compose stack, runs a short episode through vision→bus→agent→control→dashboard, and asserts telemetry flows and no crashes.
-2. **Docker-Compose multi-container deployment**: Redis, vision, api, dashboard, sumo/rl-runner, mlflow — one `docker-compose up` brings the whole system. Health checks + restart policies + resource limits.
+2. **Docker-Compose multi-container deployment**: Redis, vision, api, dashboard, control, sumo/rl-runner — one `docker-compose up` brings the whole system. Health checks + restart policies + resource limits.
 3. **Benchmarking** (`benchmark/`): across multiple demand levels and seeds, report **queue-length reduction**, **average/total waiting-time reduction**, and **throughput (vehicles cleared)** — RL vs fixed-time. Generate matplotlib charts (see `dataviz` guidance) into `docs/benchmarks/`.
 4. **Performance optimization**: profile the vision loop (batch inference, half-precision, frame skipping) and the training loop (vectorized replay, GPU); document FPS and steps/sec achieved.
 
@@ -272,7 +284,7 @@ Full stack reproducible from clean clone; CI runs the integration smoke test; do
 | SUMO 4-way + TraCI stepping | 1 | B | Headless episode runs |
 | 80-cell state encoder | 2 | B | Golden cell-mapping tests |
 | Live WebSocket telemetry | 2 | A | Browser subscribes, updates |
-| DQN 80→400×5→4 | 3 | B | Shape + training-signal tests |
+| DQN 80→400×5→2 | 3 | B | Shape + training-signal tests |
 | Yellow/All-Red safety FSM | 3 | A | All from→to transition tests + sumo-gui |
 | Reward = waiting-time delta | 3 | B | Hand-computed reward tests |
 | Training pipeline + tracking | 4 | B | MLflow run with rising reward |

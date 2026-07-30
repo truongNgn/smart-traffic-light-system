@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Dict, Any, List
+from typing import Dict
 
 import numpy as np
 from ultralytics import YOLO

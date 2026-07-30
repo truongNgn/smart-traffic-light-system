@@ -6,8 +6,6 @@ through the mandatory all-red state.
 
 from __future__ import annotations
 
-import pytest
-
 from common.constants import PHASE_DIRECTIONS, Direction, PhaseAction
 from simulation.traci_wrapper import TlsController, TraciSession
 from tests.conftest import TEST_SUMOCFG, requires_network, requires_sumo

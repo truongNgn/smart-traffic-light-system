@@ -6,8 +6,6 @@ from typing import Set
 import structlog
 from fastapi import WebSocket
 
-from common.schemas.vision import VehicleCountEvent
-
 logger = structlog.get_logger("broadcaster")
 
 

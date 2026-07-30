@@ -1,6 +1,5 @@
-import asyncio
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 import structlog
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
 from api.dependencies import broadcaster
 

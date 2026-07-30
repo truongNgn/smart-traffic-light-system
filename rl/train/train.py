@@ -19,6 +19,7 @@ from rl.agent.replay_buffer import ReplayBuffer, Transition
 from rl.env.traffic_env import SumoTrafficEnv
 from rl.train.checkpoint import load_checkpoint, save_checkpoint
 from rl.train.config import TrainingConfig
+from simulation.traci_wrapper.session import Backend
 
 logger = get_logger(component="train")
 
@@ -38,7 +39,7 @@ def epsilon_for_episode(episode_index: int, cfg: TrainingConfig) -> float:
     return cfg.epsilon_start + fraction * (cfg.epsilon_end - cfg.epsilon_start)
 
 
-def _resolve_backend(cfg: TrainingConfig) -> str:
+def _resolve_backend(cfg: TrainingConfig) -> Backend:
     """libsumo is ~8x faster than traci for step-heavy workloads like
     training (no subprocess/socket round-trip per TraCI call - see
     simulation/traci_wrapper/session.py), so it's the default here. Fall

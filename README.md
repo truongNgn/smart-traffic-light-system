@@ -296,6 +296,18 @@ Benchmark reports are written under:
 benchmark/results/
 ```
 
+Generate the Markdown report and charts used for the showcase docs:
+
+```bash
+uv run python -m benchmark.report benchmark/results/two_phase_eval_best_1200s_10seeds.json
+```
+
+Generated artifacts are written under:
+
+```text
+docs/benchmarks/
+```
+
 ## Verification
 
 Core tests:

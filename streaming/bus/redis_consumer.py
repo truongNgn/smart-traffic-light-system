@@ -1,7 +1,6 @@
 """Async consumer for Redis Streams to bridge bus to API."""
 
 import asyncio
-import json
 from typing import AsyncGenerator, List, Tuple
 
 import redis.asyncio as redis

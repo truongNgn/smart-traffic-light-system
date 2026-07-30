@@ -30,9 +30,10 @@ from common.constants import (
     YELLOW_DURATION_S,
     PhaseAction,
 )
+from rl.reward.waiting_time_reward import WaitingTimeReward
 from simulation.state.grid_encoder import GridEncoder
 from simulation.traci_wrapper import TlsController, TraciSession
-from rl.reward.waiting_time_reward import WaitingTimeReward
+from simulation.traci_wrapper.session import Backend
 
 
 class SumoTrafficEnv(gym.Env):
@@ -54,7 +55,7 @@ class SumoTrafficEnv(gym.Env):
         starving_queue_threshold: int = 8,
         starving_wait_time_s: float = 300.0,
         initial_phase: PhaseAction = PhaseAction.EAST_WEST,
-        backend: str = "traci",
+        backend: Backend = "traci",
         sumo_extra_args: list[str] | None = None,
     ) -> None:
         super().__init__()

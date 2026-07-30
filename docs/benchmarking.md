@@ -31,15 +31,16 @@ regenerate any time, and Stage 5's charts will read from here).
 ## What's being compared
 
 Both policies drive the *same* `SumoTrafficEnv` from Stage 3 - the
-fixed-time controller only decides which direction gets the next green
+fixed-time controller only decides which two-way phase gets the next green
 phase; `SumoTrafficEnv` is still the only place the yellow+all-red safety
 buffer gets inserted (`benchmark/policies.py`'s module docstring explains
 why this matters: it keeps the comparison apples-to-apples instead of
 giving one side a timing advantage).
 
-- **`FixedTimePolicy`** (`benchmark/policies.py`): cycles East → North →
-  West → South, each held green for `--fixed-green-duration` seconds -
-  the paper's baseline for comparison.
+- **`FixedTimePolicy`** (`benchmark/policies.py`): alternates
+  `EAST_WEST` and `NORTH_SOUTH`, each held green for
+  `--fixed-green-duration` seconds - the paper-style baseline adapted to
+  the current two-axis phase program.
 - **`DQNPolicy`**: the trained agent, greedy (`epsilon=0`) - no
   exploration noise in a benchmark run.
 
@@ -53,6 +54,17 @@ giving one side a timing advantage).
 
 `improvement_pct` in the JSON report is signed so positive always means
 "DQN is better" (lower waiting/queue, higher throughput).
+
+## Generating charts and a Markdown report
+
+Turn a JSON comparison into Stage 5 showcase artifacts:
+
+```bash
+python -m benchmark.report benchmark/results/two_phase_eval_best_1200s_10seeds.json
+```
+
+This writes `benchmark_report.md`, `benchmark_summary.png`, and
+`improvement_pct.png` under `docs/benchmarks/`.
 
 ## Sanity-checking without a trained model
 

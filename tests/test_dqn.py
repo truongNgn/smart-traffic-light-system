@@ -1,11 +1,12 @@
 """Pure unit tests for the DQN architecture and agent - no SUMO needed.
-Verifies the paper's exact shape (80 -> 5x400 -> 4) and that a training
-step actually produces a gradient signal.
+Verifies the current 2-phase shape (80 -> 5x400 -> 2) and that a training
+step produces a gradient signal.
 """
 
 from __future__ import annotations
 
 import numpy as np
+import pytest
 import torch
 
 from common.constants import DQN_HIDDEN_LAYERS, DQN_HIDDEN_SIZE, DQN_INPUT_SIZE, DQN_OUTPUT_SIZE
@@ -47,11 +48,8 @@ class TestReplayBuffer:
     def test_sample_raises_when_not_enough_transitions(self) -> None:
         buffer = ReplayBuffer(capacity=10)
         buffer.push(_dummy_transition())
-        try:
+        with pytest.raises(ValueError):
             buffer.sample(5)
-            assert False, "expected ValueError"
-        except ValueError:
-            pass
 
     def test_capacity_evicts_oldest(self) -> None:
         buffer = ReplayBuffer(capacity=3)

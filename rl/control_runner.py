@@ -24,6 +24,7 @@ from rl.agent.dqn_agent import DQNAgent
 from rl.env.traffic_env import SumoTrafficEnv
 from rl.train.checkpoint import load_checkpoint
 from simulation.state.grid_encoder import APPROACH_EDGE_BY_DIRECTION
+from simulation.traci_wrapper.session import Backend
 
 logger = get_logger(component="agent_runtime")
 
@@ -90,7 +91,7 @@ def run(
     sumocfg_path: str,
     episode_duration_s: float,
     seed: int,
-    backend: str,
+    backend: Backend,
     use_gui: bool,
     decision_interval_s: float,
 ) -> None:
@@ -132,7 +133,7 @@ def run(
         terminated = truncated = False
         while not (terminated or truncated):
             q_values = q_values_for(agent, obs)
-            action_index = max(q_values, key=q_values.get)
+            action_index = max(q_values, key=lambda key: q_values[key])
             phase = PhaseActionEnum[action_index]
 
             publish_decision(

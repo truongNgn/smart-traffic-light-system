@@ -71,7 +71,6 @@ async def run_inference():
     tls = TlsController(sim.traci, "C")
     
     last_id = "$"
-    current_active_direction = None
     
     try:
         while True:
@@ -130,9 +129,6 @@ async def run_inference():
                             elif phase_state.active_direction is not None:
                                 phase = DIRECTION_TO_ACTION[phase_state.active_direction]
                                 sim.traci.trafficlight.setRedYellowGreenState("C", tls.green_state(phase))
-                            
-                            current_active_direction = phase_state.active_direction
-
             # Sleep a bit to sync roughly with real-time (since step_length_s=1.0)
             await asyncio.sleep(1.0)
             

@@ -207,6 +207,8 @@ class TraciSession:
         """Advance the simulation by n steps. Returns the new step count."""
         if not self._connected:
             raise RuntimeError("Session not started; use `with TraciSession(...) as sim:`.")
+        if self._traci_module is None:
+            raise RuntimeError("Session has no active TraCI connection.")
         for _ in range(n):
             self._traci_module.simulationStep()
             self._step_count += 1

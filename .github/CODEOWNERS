@@ -1,0 +1,18 @@
+# Shared contracts, runtime topology, and docs need both sides to notice.
+common/ @engineer-a @engineer-b
+docker/ @engineer-a @engineer-b
+docker-compose.yml @engineer-a @engineer-b
+docs/ @engineer-a @engineer-b
+.github/ @engineer-a @engineer-b
+
+# Vision, streaming, API, and dashboard ownership.
+vision/ @engineer-a
+streaming/ @engineer-a
+api/ @engineer-a
+dashboard/ @engineer-a
+
+# SUMO, RL, control, and benchmark ownership.
+simulation/ @engineer-b
+rl/ @engineer-b
+control/ @engineer-b
+benchmark/ @engineer-b
