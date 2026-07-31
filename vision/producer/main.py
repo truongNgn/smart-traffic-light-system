@@ -20,10 +20,10 @@ logger = structlog.get_logger("vision_producer")
 def main() -> None:
     parser = argparse.ArgumentParser(description="Vision Stream Producer")
     parser.add_argument(
-        "--video", type=str, default="test.mp4", help="Path to input video"
+        "--video", type=str, default=vision_settings.stream_url or "test.mp4", help="Path to input video (RTSP or local)"
     )
     parser.add_argument(
-        "--camera-id", type=str, default="N", help="Camera ID (e.g., N, S, E, W)"
+        "--camera-id", type=str, default=vision_settings.camera_id, help="Camera ID (e.g., N, S, E, W)"
     )
     parser.add_argument(
         "--model", type=str, default=vision_settings.yolo_model_path, help="YOLO model path"

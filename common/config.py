@@ -47,6 +47,14 @@ class VisionSettings(BaseSettings):
         default="yolov8_vehicle_detection.pt",
         description="Path or name of the YOLOv8 model.",
     )
+    stream_url: str | None = Field(
+        default=None,
+        description="Optional RTSP stream URL. If provided, vision will read from this stream instead of a local file.",
+    )
+    camera_id: str = Field(
+        default="N",
+        description="ID of the camera (e.g. N, S, E, W). Used by the agent to determine the origin of the vehicle counts.",
+    )
     camera_fps: float = Field(
         default=30.0,
         description="Target FPS for the video stream simulator.",
