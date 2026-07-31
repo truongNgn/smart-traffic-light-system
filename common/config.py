@@ -44,7 +44,7 @@ class VisionSettings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="VISION_", env_file=".env", extra="ignore")
 
     yolo_model_path: str = Field(
-        default="yolov8n.pt",
+        default="yolov8_vehicle_detection.pt",
         description="Path or name of the YOLOv8 model.",
     )
     camera_fps: float = Field(
