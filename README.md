@@ -108,7 +108,9 @@ The canonical action contract is `target_phase`. Legacy `target_direction` paylo
 - Safety FSM consuming model decisions and publishing phase state.
 - FastAPI WebSocket telemetry bridge.
 - Streamlit dashboard for active phase, lane counts, and Q-values.
-- YOLO vision smoke-test container publishing `VehicleCountEvent` records.
+- Production-ready Vision pipeline with 4 simulated RTSP cameras (N, S, E, W).
+- YOLOv8 TensorRT GPU acceleration for real-time vehicle detection.
+- Multi-threaded TCP live CCTV viewer (`view_cam.py`).
 - Fixed-time vs DQN benchmark tooling.
 
 ## Repository Layout
@@ -155,9 +157,17 @@ This starts:
 - control service
 - Streamlit dashboard
 - trained DQN agent runner
-- vision smoke producer
+- MediaMTX RTSP Server
+- 4 FFmpeg RTSP Streamers (Simulating IP Cameras)
+- 4 Vision containers (YOLO TensorRT inference)
 
-Open the dashboard:
+To view the live CCTV dashboard of the 4 cameras:
+
+```bash
+uv run python view_cam.py
+```
+
+Open the telemetry dashboard:
 
 ```text
 http://localhost:8502
@@ -334,7 +344,6 @@ Some integration tests require SUMO and skip cleanly when SUMO is unavailable.
 
 ## Current Limitations
 
-- The vision service is currently a smoke-test container, not a long-running multi-camera deployment.
 - The dashboard is Streamlit v1; a richer React dashboard is a natural next step.
 - The model controls a SUMO simulation loop; physical hardware integration would require an adapter beneath `control/`.
 

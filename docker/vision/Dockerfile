@@ -9,10 +9,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 
-# Install CPU PyTorch first so Ultralytics does not pull a full CUDA stack.
-RUN pip install --no-cache-dir --index-url https://download.pytorch.org/whl/cpu \
+# Install PyTorch with CUDA support and TensorRT
+RUN pip install --no-cache-dir \
     "torch==2.2.2" \
-    "torchvision==0.17.2"
+    "torchvision==0.17.2" \
+    "tensorrt>=8.6.0"
 
 RUN pip install --no-cache-dir \
     "numpy==1.26.4" \
@@ -30,4 +31,4 @@ FROM base
 COPY . /app/
 ENV PYTHONPATH=/app
 
-CMD ["python", "-m", "vision.producer.smoke_test"]
+CMD ["python", "-m", "vision.producer.main", "--headless"]
