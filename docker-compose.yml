@@ -100,7 +100,7 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
-  vision-n:
+  vision:
     build:
       context: .
       dockerfile: docker/vision/Dockerfile
@@ -108,77 +108,12 @@ services:
       REDIS_HOST: redis
       REDIS_PORT: "6379"
       VISION_YOLO_MODEL_PATH: yolov8_vehicle_detection.engine
-      VISION_STREAM_URL: rtsp://mediamtx:8554/cam1
-      VISION_CAMERA_ID: N
+      VISION_STREAMS: N=rtsp://mediamtx:8554/cam1,S=rtsp://mediamtx:8554/cam2,E=rtsp://mediamtx:8554/cam3,W=rtsp://mediamtx:8554/cam4
     depends_on:
       redis:
         condition: service_healthy
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: 1
-              capabilities: [gpu]
-    restart: unless-stopped
-
-  vision-s:
-    build:
-      context: .
-      dockerfile: docker/vision/Dockerfile
-    environment:
-      REDIS_HOST: redis
-      REDIS_PORT: "6379"
-      VISION_YOLO_MODEL_PATH: yolov8_vehicle_detection.engine
-      VISION_STREAM_URL: rtsp://mediamtx:8554/cam2
-      VISION_CAMERA_ID: S
-    depends_on:
-      redis:
-        condition: service_healthy
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: 1
-              capabilities: [gpu]
-    restart: unless-stopped
-
-  vision-e:
-    build:
-      context: .
-      dockerfile: docker/vision/Dockerfile
-    environment:
-      REDIS_HOST: redis
-      REDIS_PORT: "6379"
-      VISION_YOLO_MODEL_PATH: yolov8_vehicle_detection.engine
-      VISION_STREAM_URL: rtsp://mediamtx:8554/cam3
-      VISION_CAMERA_ID: E
-    depends_on:
-      redis:
-        condition: service_healthy
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: 1
-              capabilities: [gpu]
-    restart: unless-stopped
-
-  vision-w:
-    build:
-      context: .
-      dockerfile: docker/vision/Dockerfile
-    environment:
-      REDIS_HOST: redis
-      REDIS_PORT: "6379"
-      VISION_YOLO_MODEL_PATH: yolov8_vehicle_detection.engine
-      VISION_STREAM_URL: rtsp://mediamtx:8554/cam4
-      VISION_CAMERA_ID: W
-    depends_on:
-      redis:
-        condition: service_healthy
+      mediamtx:
+        condition: service_started
     deploy:
       resources:
         reservations:
@@ -194,42 +129,17 @@ services:
       - "8554:8554"
     restart: unless-stopped
 
-  rtsp-streamer-1:
+  rtsp-streamers:
     image: linuxserver/ffmpeg:latest
     volumes:
       - ./streaming/videos:/videos:ro
     entrypoint: ""
-    command: ffmpeg -re -stream_loop -1 -i /videos/cam_1.mp4 -c copy -rtsp_transport tcp -f rtsp rtsp://mediamtx:8554/cam1
-    depends_on:
-      - mediamtx
-    restart: unless-stopped
-
-  rtsp-streamer-2:
-    image: linuxserver/ffmpeg:latest
-    volumes:
-      - ./streaming/videos:/videos:ro
-    entrypoint: ""
-    command: ffmpeg -re -stream_loop -1 -i /videos/cam_2.mp4 -c copy -rtsp_transport tcp -f rtsp rtsp://mediamtx:8554/cam2
-    depends_on:
-      - mediamtx
-    restart: unless-stopped
-
-  rtsp-streamer-3:
-    image: linuxserver/ffmpeg:latest
-    volumes:
-      - ./streaming/videos:/videos:ro
-    entrypoint: ""
-    command: ffmpeg -re -stream_loop -1 -i /videos/cam_3.mp4 -c copy -rtsp_transport tcp -f rtsp rtsp://mediamtx:8554/cam3
-    depends_on:
-      - mediamtx
-    restart: unless-stopped
-
-  rtsp-streamer-4:
-    image: linuxserver/ffmpeg:latest
-    volumes:
-      - ./streaming/videos:/videos:ro
-    entrypoint: ""
-    command: ffmpeg -re -stream_loop -1 -i /videos/cam_4.mp4 -c copy -rtsp_transport tcp -f rtsp rtsp://mediamtx:8554/cam4
+    command:
+      [
+        "sh",
+        "-c",
+        "ffmpeg -re -stream_loop -1 -i /videos/cam_1.mp4 -c copy -rtsp_transport tcp -f rtsp rtsp://mediamtx:8554/cam1 & ffmpeg -re -stream_loop -1 -i /videos/cam_2.mp4 -c copy -rtsp_transport tcp -f rtsp rtsp://mediamtx:8554/cam2 & ffmpeg -re -stream_loop -1 -i /videos/cam_3.mp4 -c copy -rtsp_transport tcp -f rtsp rtsp://mediamtx:8554/cam3 & ffmpeg -re -stream_loop -1 -i /videos/cam_4.mp4 -c copy -rtsp_transport tcp -f rtsp rtsp://mediamtx:8554/cam4 & wait",
+      ]
     depends_on:
       - mediamtx
     restart: unless-stopped

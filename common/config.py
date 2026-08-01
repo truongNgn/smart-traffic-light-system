@@ -51,6 +51,14 @@ class VisionSettings(BaseSettings):
         default=None,
         description="Optional RTSP stream URL. If provided, vision will read from this stream instead of a local file.",
     )
+    streams: str | None = Field(
+        default=None,
+        description=(
+            "Optional comma-separated camera stream map, for example "
+            "'N=rtsp://mediamtx:8554/cam1,S=rtsp://mediamtx:8554/cam2'. "
+            "When set, one vision container can process multiple cameras."
+        ),
+    )
     camera_id: str = Field(
         default="N",
         description="ID of the camera (e.g. N, S, E, W). Used by the agent to determine the origin of the vehicle counts.",
