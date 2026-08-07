@@ -12,6 +12,10 @@ uv.lock
 # Env / secrets
 .env
 .env.*
+*.pem
+*.key
+*credentials*.json
+*secret*
 
 # SUMO generated / large artifacts
 simulation/net/intersection.net.xml
