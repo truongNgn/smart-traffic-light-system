@@ -1,36 +1,30 @@
 """Control daemon that listens to AI commands and drives the FSM."""
 
 import asyncio
-import json
 import time
 
-import redis.asyncio as redis
 import structlog
 from pydantic import ValidationError
 
-from common.config import redis_settings
+from common.config import site_settings
 from common.schemas.control import PhaseAction, PhaseState
 from control.fsm import PhaseFSM
+from streaming.bus.factory import get_message_bus
 
 logger = structlog.get_logger("control_service")
 
 class ControlService:
     def __init__(self):
-        self.redis = redis.Redis(
-            host=redis_settings.host, 
-            port=redis_settings.port, 
-            decode_responses=True
-        )
+        self.bus = get_message_bus()
         self.fsm = PhaseFSM(publish_cb=self.publish_state)
         self._running = False
         self.last_command_time = time.time()
         self.watchdog_timeout_s = 10.0
 
     async def publish_state(self, state: PhaseState):
-        """Callback for the FSM to publish state updates to Redis."""
-        payload = {"data": state.model_dump_json()}
+        """Callback for the FSM to publish state updates to the bus."""
         try:
-            await self.redis.xadd("phase_states", payload)
+            await self.bus.publish("traffic.phase_state.v1", site_settings.intersection_id, state)
             logger.debug("Published PhaseState", state=state.model_dump())
         except Exception as e:
             logger.error("Failed to publish PhaseState", error=str(e))
@@ -44,40 +38,32 @@ class ControlService:
                     logger.error("Watchdog timeout! No commands received. Failing safe.")
                     await self.fsm.force_all_red()
 
+    async def on_command(self, payload: dict) -> None:
+        try:
+            action = PhaseAction(**payload)
+            self.last_command_time = time.time()
+            logger.info("Received PhaseAction", action=action.model_dump())
+            asyncio.create_task(self.fsm.transition_to(action.target_phase))
+        except ValidationError as e:
+            logger.error("Invalid PhaseAction", error=str(e))
+        except Exception as e:
+            logger.error("Failed to process command", error=str(e))
+
     async def consume_commands(self):
-        """Listens for AI PhaseActions on Redis."""
-        last_id = "$"
-        logger.info("Listening for agent commands on 'agent_commands'")
-        
+        """Listens for AI PhaseActions on the bus."""
+        logger.info("Listening for agent commands on 'traffic.commands.v1'")
         while self._running:
             try:
-                streams = await self.redis.xread({"agent_commands": last_id}, count=1, block=1000)
-                if not streams:
-                    continue
-                    
-                # Untyped unpack for brevity, we know the structure
-                for stream_name, messages in streams:
-                    for message_id, data in messages:
-                        last_id = message_id
-                        if "data" in data:
-                            try:
-                                payload = json.loads(data["data"])
-                                action = PhaseAction(**payload)
-                                self.last_command_time = time.time()
-                                logger.info("Received PhaseAction", action=action.model_dump())
-                                
-                                # Do not await the transition directly in the read loop if you want 
-                                # to keep reading, but FSM has a lock so we can just fire it as a task.
-                                asyncio.create_task(self.fsm.transition_to(action.target_phase))
-                                
-                            except ValidationError as e:
-                                logger.error("Invalid PhaseAction", error=str(e))
-                            except Exception as e:
-                                logger.error("Failed to process command", error=str(e))
+                await self.bus.subscribe(
+                    topic="traffic.commands.v1",
+                    consumer_group="control_group",
+                    consumer_name="control_worker_1",
+                    callback=self.on_command
+                )
             except asyncio.CancelledError:
                 break
             except Exception as e:
-                logger.error("Redis read error", error=str(e))
+                logger.error("Bus read error", error=str(e))
                 await asyncio.sleep(1.0)
 
     async def run(self):
@@ -96,7 +82,7 @@ class ControlService:
             self._running = False
             watchdog_task.cancel()
             consume_task.cancel()
-            await self.redis.aclose()
+            await getattr(self.bus, "close", lambda: asyncio.sleep(0))()
             logger.info("Control Service stopped")
 
 if __name__ == "__main__":

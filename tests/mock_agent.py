@@ -8,14 +8,14 @@ async def run_mock():
     r = redis.Redis(host="localhost", port=6379, decode_responses=True)
     
     # Send East/West Green
-    action = PhaseAction(target_phase=PhaseActionEnum.EAST_WEST, timestamp_s=time.time())
+    action = PhaseAction(target_phase=PhaseActionEnum.EAST_WEST)
     await r.xadd("agent_commands", {"data": action.model_dump_json()})
     print(f"Sent: {action}")
     
     await asyncio.sleep(5)
     
     # Send North/South Green (Should trigger Yellow -> All Red -> Green)
-    action = PhaseAction(target_phase=PhaseActionEnum.NORTH_SOUTH, timestamp_s=time.time())
+    action = PhaseAction(target_phase=PhaseActionEnum.NORTH_SOUTH)
     await r.xadd("agent_commands", {"data": action.model_dump_json()})
     print(f"Sent: {action}")
 

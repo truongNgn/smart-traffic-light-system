@@ -29,8 +29,7 @@ latest_phase_state: Dict[str, Any] = {
     "active_directions": [],
     "active_direction": None,
     "is_yellow": False,
-    "is_all_red": True,
-    "timestamp_s": 0.0
+    "is_all_red": True
 }
 
 latest_reasoning: List[Dict[str, Any]] = []
@@ -64,7 +63,16 @@ def on_message(ws, message):
 
 def _apply_payload(topic: str, payload: Dict[str, Any]) -> None:
     if topic == "vehicle_counts":
-        ts = payload.get("timestamp_s", time.time())
+        ts = time.time()
+        if "event_ts" in payload:
+            try:
+                from datetime import datetime
+                ts = datetime.fromisoformat(payload["event_ts"].replace('Z', '+00:00')).timestamp()
+            except Exception:
+                pass
+        elif "timestamp_s" in payload:
+            ts = payload["timestamp_s"]
+
         counts = payload.get("counts") or payload.get("lane_counts", {})
         for direction, count in counts.items():
             normalized = _normalize_direction(direction)

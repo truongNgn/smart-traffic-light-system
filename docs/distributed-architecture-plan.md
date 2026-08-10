@@ -199,11 +199,11 @@ weekly retraining-dataset export. The streaming path does not go through Airflow
 ## 6. Roadmap
 
 ### Phase 0 — Contract foundation (2 weeks) — *no infrastructure changes*
-- [ ] Add `intersection_id`, `site_id`, `schema_version`, `event_ts` to `common/schemas`
-- [ ] Unify `reasoning_logs` / `agent_reasoning`
-- [ ] Finish `MessageBus.subscribe()` in `streaming/bus/interface.py`
-- [ ] Refactor `control/service.py` and `rl/control_runner.py` onto the bus abstraction
-- [ ] Publish schemas (JSON Schema generated from Pydantic) + CI backward-compatibility check
+- [x] Add `intersection_id`, `site_id`, `schema_version`, `event_ts` to `common/schemas`
+- [x] Unify `reasoning_logs` / `agent_reasoning`
+- [x] Finish `MessageBus.subscribe()` in `streaming/bus/interface.py`
+- [x] Refactor `control/service.py` and `rl/control_runner.py` onto the bus abstraction
+- [x] Publish schemas (JSON Schema generated from Pydantic) + CI backward-compatibility check
 - **Exit**: the existing compose stack runs unchanged, tests green, `intersection_id` present end-to-end
 
 ### Phase 1 — Multi-intersection on one host (2 weeks)

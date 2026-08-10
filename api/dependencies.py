@@ -7,5 +7,5 @@ broadcaster = Broadcaster()
 redis_consumer = RedisConsumer(
     host=redis_settings.host,
     port=redis_settings.port,
-    stream_names=[redis_settings.stream_name, "phase_states", "reasoning_logs"],
+    stream_names=[redis_settings.stream_name, "traffic.phase_state.v1", "traffic.reasoning.v1"],
 )

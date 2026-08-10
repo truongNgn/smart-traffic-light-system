@@ -6,10 +6,12 @@ from __future__ import annotations
 
 from pydantic import BaseModel, Field, field_validator
 
+from common.schemas.base import BaseEvent
+
 from common.constants import GRID_CELLS_TOTAL
 
 
-class IntersectionState(BaseModel):
+class IntersectionState(BaseEvent):
     """One control-step snapshot of the intersection, ready to feed the DQN."""
 
     step: int = Field(ge=0, description="Simulation step this state was captured at.")

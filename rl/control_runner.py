@@ -8,14 +8,14 @@ control service and dashboard observe the same decisions.
 from __future__ import annotations
 
 import argparse
+import asyncio
 import time
 from pathlib import Path
 
 import numpy as np
-import redis
 import torch
 
-from common.config import agent_runtime_settings, redis_settings, settings
+from common.config import agent_runtime_settings, site_settings, settings
 from common.constants import PhaseAction as PhaseActionEnum
 from common.logging import configure_logging, get_logger
 from common.schemas.control import PhaseAction, ReasoningLog
@@ -25,6 +25,8 @@ from rl.env.traffic_env import SumoTrafficEnv
 from rl.train.checkpoint import load_checkpoint
 from simulation.state.grid_encoder import APPROACH_EDGE_BY_DIRECTION
 from simulation.traci_wrapper.session import Backend
+from streaming.bus.factory import get_message_bus
+from streaming.bus.interface import MessageBus
 
 logger = get_logger(component="agent_runtime")
 
@@ -36,18 +38,16 @@ def q_values_for(agent: DQNAgent, obs: np.ndarray) -> dict[str, float]:
     return {PhaseActionEnum(i).name: float(value) for i, value in enumerate(values)}
 
 
-def publish_decision(
-    redis_client: redis.Redis,
+async def publish_decision(
+    bus: MessageBus,
     *,
     phase: PhaseActionEnum,
     q_values: dict[str, float],
     sim_time_s: float,
     total_waiting_time_s: float,
 ) -> None:
-    timestamp_s = time.time()
-    action = PhaseAction(target_phase=phase, timestamp_s=timestamp_s)
+    action = PhaseAction(target_phase=phase)
     reasoning = ReasoningLog(
-        timestamp_s=timestamp_s,
         q_values=q_values,
         chosen_action=phase,
         exploration=False,
@@ -55,8 +55,8 @@ def publish_decision(
         total_waiting_time_s=total_waiting_time_s,
     )
 
-    redis_client.xadd("agent_commands", {"data": action.model_dump_json()})
-    redis_client.xadd("reasoning_logs", {"data": reasoning.model_dump_json()})
+    await bus.publish("traffic.commands.v1", site_settings.intersection_id, action)
+    await bus.publish("traffic.reasoning.v1", site_settings.intersection_id, reasoning)
 
 
 def sumo_direction_counts(env: SumoTrafficEnv) -> dict[str, int]:
@@ -73,19 +73,18 @@ def sumo_direction_counts(env: SumoTrafficEnv) -> dict[str, int]:
     return counts
 
 
-def publish_sumo_counts(redis_client: redis.Redis, env: SumoTrafficEnv) -> None:
+async def publish_sumo_counts(bus: MessageBus, env: SumoTrafficEnv) -> None:
     counts = sumo_direction_counts(env)
     if not counts:
         return
     event = VehicleCountEvent(
         camera_id="sumo",
-        timestamp_s=time.time(),
         lane_counts=counts,
     )
-    redis_client.xadd("vehicle_counts", {"data": event.model_dump_json()})
+    await bus.publish("traffic.counts.v1", site_settings.intersection_id, event)
 
 
-def run(
+async def run(
     *,
     checkpoint_path: str,
     sumocfg_path: str,
@@ -103,12 +102,7 @@ def run(
 
     agent = DQNAgent()
     trained_episode = load_checkpoint(checkpoint, agent)
-    redis_client = redis.Redis(
-        host=redis_settings.host,
-        port=redis_settings.port,
-        decode_responses=True,
-    )
-    redis_client.ping()
+    bus = get_message_bus()
 
     env = SumoTrafficEnv(
         sumocfg_path=sumocfg_path,
@@ -136,8 +130,8 @@ def run(
             action_index = max(q_values, key=lambda key: q_values[key])
             phase = PhaseActionEnum[action_index]
 
-            publish_decision(
-                redis_client,
+            await publish_decision(
+                bus,
                 phase=phase,
                 q_values=q_values,
                 sim_time_s=float(info["sim_time_s"]),
@@ -145,7 +139,7 @@ def run(
             )
 
             obs, reward, terminated, truncated, info = env.step(phase.value)
-            publish_sumo_counts(redis_client, env)
+            await publish_sumo_counts(bus, env)
             logger.info(
                 "agent_runtime.step",
                 sim_time_s=info["sim_time_s"],
@@ -155,10 +149,10 @@ def run(
                 total_waiting_time_s=info["total_waiting_time_s"],
             )
             if decision_interval_s > 0:
-                time.sleep(decision_interval_s)
+                await asyncio.sleep(decision_interval_s)
     finally:
         env.close()
-        redis_client.close()
+        await getattr(bus, "close", lambda: asyncio.sleep(0))()
 
     logger.info("agent_runtime.finished")
 
@@ -192,14 +186,16 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    run(
-        checkpoint_path=args.checkpoint,
-        sumocfg_path=args.sumocfg,
-        episode_duration_s=args.episode_duration,
-        seed=args.seed,
-        backend=args.backend,
-        use_gui=args.use_gui,
-        decision_interval_s=args.decision_interval,
+    asyncio.run(
+        run(
+            checkpoint_path=args.checkpoint,
+            sumocfg_path=args.sumocfg,
+            episode_duration_s=args.episode_duration,
+            seed=args.seed,
+            backend=args.backend,
+            use_gui=args.use_gui,
+            decision_interval_s=args.decision_interval,
+        )
     )
 
 

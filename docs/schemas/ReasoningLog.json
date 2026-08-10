@@ -1,0 +1,102 @@
+{
+  "$defs": {
+    "PhaseAction": {
+      "description": "Traffic-police-style green phases: both opposite approaches run together.",
+      "enum": [
+        0,
+        1
+      ],
+      "title": "PhaseAction",
+      "type": "integer"
+    }
+  },
+  "description": "Detailed log of the AI's decision process for the dashboard.",
+  "properties": {
+    "intersection_id": {
+      "description": "Unique ID for this intersection (e.g., 'hcm.q1.nvc-lelai').",
+      "title": "Intersection Id",
+      "type": "string"
+    },
+    "site_id": {
+      "description": "Cluster or region ID used for routing.",
+      "title": "Site Id",
+      "type": "string"
+    },
+    "schema_version": {
+      "default": 1,
+      "description": "Version of the event schema.",
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "event_ts": {
+      "description": "Timestamp when the event was produced at the source.",
+      "format": "date-time",
+      "title": "Event Ts",
+      "type": "string"
+    },
+    "ingest_ts": {
+      "anyOf": [
+        {
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Timestamp when the bus received it. Measures end-to-end latency.",
+      "title": "Ingest Ts"
+    },
+    "q_values": {
+      "additionalProperties": {
+        "type": "number"
+      },
+      "description": "Q-values for each possible phase, e.g. {'EAST_WEST': 12.5}.",
+      "title": "Q Values",
+      "type": "object"
+    },
+    "chosen_action": {
+      "$ref": "#/$defs/PhaseAction",
+      "description": "The phase selected by the policy."
+    },
+    "exploration": {
+      "default": false,
+      "description": "True if the action was chosen randomly (epsilon-greedy).",
+      "title": "Exploration",
+      "type": "boolean"
+    },
+    "sim_time_s": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Current SUMO simulation time.",
+      "title": "Sim Time S"
+    },
+    "total_waiting_time_s": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Total network waiting time observed by the agent.",
+      "title": "Total Waiting Time S"
+    }
+  },
+  "required": [
+    "q_values",
+    "chosen_action"
+  ],
+  "title": "ReasoningLog",
+  "type": "object"
+}

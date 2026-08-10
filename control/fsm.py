@@ -31,8 +31,7 @@ class PhaseFSM:
             active_directions=active_directions,
             active_direction=active_directions[0] if active_directions else None,
             is_yellow=(self.state == "YELLOW"),
-            is_all_red=(self.state == "ALL_RED"),
-            timestamp_s=time.time()
+            is_all_red=(self.state == "ALL_RED")
         )
 
     async def _publish(self):

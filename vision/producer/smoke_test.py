@@ -115,7 +115,6 @@ def main() -> None:
             # 3. Create Event
             event = VehicleCountEvent(
                 camera_id=simulator.camera_id,
-                timestamp_s=timestamp_s,
                 class_counts=class_counts,
                 lane_counts=lane_counts,
                 centroids=centroids,

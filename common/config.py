@@ -93,7 +93,7 @@ class RedisSettings(BaseSettings):
 
     host: str = Field(default="localhost")
     port: int = Field(default=6379)
-    stream_name: str = Field(default="vehicle_counts")
+    stream_name: str = Field(default="traffic.counts.v1")
 
 
 class ApiSettings(BaseSettings):
@@ -123,8 +123,17 @@ class AgentRuntimeSettings(BaseSettings):
     )
 
 
+class SiteSettings(BaseSettings):
+    """Global identifiers for the intersection site."""
+    model_config = SettingsConfigDict(env_prefix="SITE_", env_file=".env", extra="ignore")
+
+    intersection_id: str = Field(default="default-intersection")
+    site_id: str = Field(default="default-site")
+
+
 settings = SimulationSettings()
 vision_settings = VisionSettings()
 redis_settings = RedisSettings()
 api_settings = ApiSettings()
 agent_runtime_settings = AgentRuntimeSettings()
+site_settings = SiteSettings()

@@ -6,11 +6,13 @@ from typing import Any
 
 from pydantic import BaseModel, Field, model_validator
 
+from common.schemas.base import BaseEvent
+
 from common.constants import DIRECTION_PHASE, PHASE_DIRECTIONS, Direction
 from common.constants import PhaseAction as PhaseActionEnum
 
 
-class PhaseAction(BaseModel):
+class PhaseAction(BaseEvent):
     """Command sent by the AI agent to the executor.
 
     `target_phase` is the canonical model/control contract. `target_direction`
@@ -19,7 +21,6 @@ class PhaseAction(BaseModel):
     """
 
     target_phase: PhaseActionEnum = Field(description="The two-way green phase to grant.")
-    timestamp_s: float = Field(description="Timestamp of the decision.")
 
     @model_validator(mode="before")
     @classmethod
@@ -39,7 +40,7 @@ class PhaseAction(BaseModel):
         return PHASE_DIRECTIONS[self.target_phase]
 
 
-class PhaseState(BaseModel):
+class PhaseState(BaseEvent):
     """The current physical state of the intersection."""
 
     active_phase: PhaseActionEnum | None = Field(
@@ -59,13 +60,11 @@ class PhaseState(BaseModel):
     is_all_red: bool = Field(
         default=False, description="True if all lights are currently red (safety buffer)."
     )
-    timestamp_s: float = Field(description="Timestamp when this state became active.")
 
 
-class ReasoningLog(BaseModel):
+class ReasoningLog(BaseEvent):
     """Detailed log of the AI's decision process for the dashboard."""
 
-    timestamp_s: float = Field(description="Timestamp of the decision.")
     q_values: dict[str, float] = Field(
         description="Q-values for each possible phase, e.g. {'EAST_WEST': 12.5}."
     )

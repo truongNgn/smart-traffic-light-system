@@ -103,7 +103,6 @@ def run_camera_stream(
             # 3. Create Event
             event = VehicleCountEvent(
                 camera_id=stream.camera_id,
-                timestamp_s=current_time,
                 class_counts=class_counts,
                 lane_counts=lane_counts,
                 mean_speed_mps=mean_speed_mps,

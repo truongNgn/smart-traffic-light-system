@@ -96,7 +96,6 @@ async def run_inference():
             target_direction = ACTION_TO_DIRECTION[action_idx]
             
             reasoning = ReasoningLog(
-                timestamp_s=time.time(),
                 q_values=q_dict,
                 chosen_action=target_direction,
                 exploration=False
@@ -107,7 +106,7 @@ async def run_inference():
             
             # Publish PhaseAction for the Control Service
             # Control Service ignores redundant "GREEN" commands for the same direction.
-            phase_action = PhaseAction(target_direction=target_direction, timestamp_s=time.time())
+            phase_action = PhaseAction(target_direction=target_direction)
             await r.xadd("agent_commands", {"data": phase_action.model_dump_json()})
             
             # Check for new phase states from Control Service
